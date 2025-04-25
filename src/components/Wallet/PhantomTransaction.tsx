@@ -4,13 +4,8 @@ import {
   SystemProgram,
   PublicKey,
 } from "@solana/web3.js";
-import { Buffer } from "buffer";
 
 const PhantomTransaction = () => {
-  if (typeof window !== "undefined") {
-    window.Buffer = Buffer;
-  }
-
   const createTransaction = async () => {
     const provider = window.solana;
     if (!provider) {
@@ -81,7 +76,7 @@ const PhantomTransaction = () => {
 
     const paymentRequest = {
       userId: 1,
-      currency: "SOL",
+      currencyId: 2,
       amount: price,
       subscriptionPlanId: 1,
       paymentIntent: signature,
