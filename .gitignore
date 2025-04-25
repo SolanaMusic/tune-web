@@ -232,7 +232,6 @@ bower_components/
 
 # React/TypeScript
 *.tsbuildinfo
-*.tsx
 
 # TypeScript Debugger
 *.vscode/
