@@ -36,16 +36,23 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
     username: "johndoe",
     email: "john.doe@example.com",
     avatar: "",
-    followers: 245,
     following: 118,
     bio: "Music enthusiast and playlist curator. Always on the lookout for new sounds and artists.",
     subscription: {
       plan: "Premium Individual",
       status: "Active",
-      renewalDate: "May 15, 2025",
+      renewalDate: "",
       price: "$9.99/month",
     },
   };
+
+  const today = new Date();
+  const nextMonth = new Date(today.setMonth(today.getMonth() + 1));
+  const options = { year: "numeric", month: "long", day: "numeric" };
+  userProfile.subscription.renewalDate = nextMonth.toLocaleDateString(
+    "en-US",
+    options
+  );
 
   const userPlaylists = [
     {
@@ -285,14 +292,8 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
               @{userProfile.username}
             </p>
             <div className="flex justify-center gap-4 text-sm">
-              <div>
-                <span className="font-bold">{userProfile.followers}</span>{" "}
-                Followers
-              </div>
-              <div>
-                <span className="font-bold">{userProfile.following}</span>{" "}
-                Following
-              </div>
+              <span className="font-bold">{userProfile.following}</span>{" "}
+              Following
             </div>
             <Button variant="outline" size="sm" className="mt-4 w-full">
               <Edit className="mr-2 h-4 w-4" /> Edit Profile
@@ -310,9 +311,9 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
               <div className="text-xl font-bold mt-1">
                 {userProfile.subscription.plan}
               </div>
-              <div className="text-sm text-muted-foreground mt-1">
-                {userProfile.subscription.price} • Renews{" "}
-                {userProfile.subscription.renewalDate}
+              <div className="text-sm text-muted-foreground mt-3">
+                <div>{userProfile.subscription.price}</div>
+                <div>Renews {userProfile.subscription.renewalDate}</div>
               </div>
             </div>
             <div className="p-4">

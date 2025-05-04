@@ -1,15 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Check,
-  X,
-  CreditCard,
-  Music,
-  Users,
-  Headphones,
-  Shield,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { Check, X, Music, Users, Headphones } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -28,95 +22,309 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { ViewType } from "@/components/music-app";
+import axios from "axios";
+import PaymentMethods from "../ui/payment-methods";
+import {
+  Connection,
+  Transaction,
+  SystemProgram,
+  PublicKey,
+} from "@solana/web3.js";
 
-interface SubscriptionViewProps {
-  onNavigate?: (view: ViewType, id?: string) => void;
+interface SubscriptionPlan {
+  id: number;
+  name: string;
+  durationInMonths: number;
+  type: string;
+  maxMembers: number;
+  tokensMultiplier: number;
+  subscriptionPlanCurrencies: {
+    id: number;
+    price: number;
+    currency: {
+      id: number;
+      code: string;
+      symbol: string;
+    };
+  }[];
 }
 
-export function SubscriptionView({ onNavigate }: SubscriptionViewProps) {
+export function SubscriptionView() {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">(
     "monthly"
   );
-  const [currency, setCurrency] = useState<"usd" | "sol" | "tune">("usd");
+  const [currency, setCurrency] = useState<"USD" | "TUNE" | "SOL">("USD");
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [solPrice, setSolPrice] = useState<number>(0);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const fetchPlans = async () => {
+    try {
+      const response = await axios.get<SubscriptionPlan[]>(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}subscription-plans`
+      );
+      setPlans(response.data);
+    } catch (error) {
+      console.error("Failed to fetch subscription plans", error);
+    }
+  };
+
+  const connectToBinanceSocket = () => {
+    const socket = new WebSocket(
+      `${process.env.NEXT_PUBLIC_BINANCE_WS_URL}solusdt@trade`
+    );
+
+    socket.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      const price = parseFloat(message.p);
+      setSolPrice(price);
+    };
+
+    socket.onclose = () => {
+      setTimeout(connectToBinanceSocket, 5000);
+    };
+
+    socket.onerror = () => {
+      socket.close();
+    };
+  };
+
+  const handlePayment = async (
+    planId: number,
+    planPriceUSD: number,
+    currencyId: number
+  ) => {
+    const finalPrice =
+      billingCycle === "yearly" ? planPriceUSD * 12 * 0.83 : planPriceUSD;
+
+    if (currencyId === 1) {
+      await handleBankTransfer(planId, currencyId);
+    } else if (currencyId === 2) {
+      await handleCryptoPayment(planId, finalPrice, currencyId);
+    }
+  };
+
+  const handleBankTransfer = async (planId: number, currencyId: number) => {
+    const paymentData = {
+      userId: 1,
+      currencyId: currencyId,
+      stripeSubscriptionPaymentDto: {
+        subscriptionPlanId: planId,
+        imageUrl: `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}images/favicon.jpg`,
+        successUrl: `${window.location.origin}/profile`,
+        cancelUrl: `${window.location.origin}${pathname}`,
+      },
+    };
+
+    try {
+      var response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}payments/stripe`,
+        paymentData,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      if (response.status === 200) {
+        router.push(response.data);
+      }
+    } catch (error) {
+      console.error("Error posting Stripe payment:", error);
+    }
+  };
+
+  const handleCryptoPayment = async (
+    planId: number,
+    planPriceUSD: number,
+    currencyId: number
+  ) => {
+    const provider = window.solana;
+    if (!provider) {
+      return;
+    }
+
+    try {
+      const connection = new Connection(
+        `${process.env.NEXT_PUBLIC_CONNECTION_ADRESS}`,
+        "confirmed"
+      );
+
+      await provider.connect();
+      const senderPublicKey = new PublicKey(provider.publicKey.toString());
+      const recipient = new PublicKey(
+        `${process.env.NEXT_PUBLIC_WALLET_ADRESS}`
+      );
+
+      const lamports = Math.round((planPriceUSD / solPrice) * 1_000_000_000);
+
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: senderPublicKey,
+          toPubkey: recipient,
+          lamports,
+        })
+      );
+
+      const { blockhash, lastValidBlockHeight } =
+        await connection.getLatestBlockhash("finalized");
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = senderPublicKey;
+
+      const signedTransaction = await provider.signTransaction(transaction);
+      const signature = await connection.sendRawTransaction(
+        signedTransaction.serialize()
+      );
+
+      await connection.confirmTransaction(
+        {
+          signature,
+          blockhash,
+          lastValidBlockHeight,
+        },
+        "confirmed"
+      );
+
+      var response = await recordPayment(
+        planId,
+        currencyId,
+        lamports / 1_000_000_000,
+        signature,
+        "completed"
+      );
+
+      if (response?.status === 200) {
+        router.push("/profile");
+      }
+    } catch (error) {
+      console.error("Error during Solana payment:", error);
+      await recordPayment(planId, currencyId, 0, null, "failed");
+    }
+  };
+
+  const recordPayment = async (
+    planId: number,
+    currencyId: number,
+    amount: number,
+    paymentIntent: string | null,
+    status: "pending" | "completed" | "failed"
+  ) => {
+    const paymentRequest = {
+      userId: 1,
+      currencyId,
+      amount,
+      subscriptionPlanId: planId,
+      paymentIntent,
+      status,
+    };
+
+    try {
+      return await axios.post(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}payments/crypto`,
+        paymentRequest,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    } catch (error) {
+      console.error("Error posting payment record:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchPlans();
+    connectToBinanceSocket();
+  }, []);
 
   const currencySymbols = {
-    usd: "$",
-    sol: "◎",
-    tune: "♪",
+    USD: "$",
+    SOL: "◎",
+    TUNE: "♪",
   };
 
-  const conversionRates = {
-    usd: 1,
-    sol: 0.05,
-    tune: 10,
+  const freePlan = {
+    id: 0,
+    name: "Free Plan",
+    durationInMonths: 0,
+    type: "Individual",
+    maxMembers: 1,
+    tokensMultiplier: 0,
+    subscriptionPlanCurrencies: [
+      {
+        id: 0,
+        price: 0,
+        currency: {
+          id: 0,
+          code: "USD",
+          symbol: "$",
+        },
+      },
+    ],
+    description: "Enjoy music with limited features for free",
+    features: ["Ad-supported listening", "Basic audio quality"],
+    limitations: [
+      "Limited skips",
+      "No offline listening",
+      "No family accounts",
+    ],
+    popular: false,
+    cta: "Sign Up for Free",
   };
 
-  const plans = [
-    {
-      id: "basic",
-      name: "Basic Plan",
-      description: "Essential music streaming",
-      monthlyPrice: 4.99,
-      yearlyPrice: 49.99,
-      features: [
-        "Ad-supported listening",
-        "Mobile app access",
-        "Standard audio quality",
-      ],
-      limitations: [
-        "No offline listening",
-        "Limited skips",
-        "No family accounts",
-      ],
-      popular: false,
-      cta: "Get Started",
-    },
-    {
-      id: "premium",
-      name: "Premium Plan",
-      description: "Enhanced music experience",
-      monthlyPrice: 9.99,
-      yearlyPrice: 99.99,
-      features: [
-        "Ad-free listening",
-        "Unlimited skips",
-        "High quality audio",
-        "Offline listening",
-      ],
-      limitations: ["No family accounts"],
-      popular: true,
-      cta: "Get Premium",
-    },
-    {
-      id: "family",
-      name: "Family Plan",
-      description: "Premium for up to 6 accounts",
-      monthlyPrice: 14.99,
-      yearlyPrice: 149.99,
-      features: [
-        "All Premium features",
-        "Up to 6 accounts",
-        "Parental controls",
-        "Shared playlists",
-      ],
-      limitations: [],
-      popular: false,
-      cta: "Get Family Plan",
-    },
+  const extendedPlans = [
+    freePlan,
+    ...plans.map((plan) => ({
+      ...plan,
+      description:
+        plan.name === "Basic Plan"
+          ? "Essential music streaming"
+          : plan.name === "Premium Plan"
+          ? "Enhanced music experience"
+          : "Premium for up to 6 accounts",
+      features:
+        plan.name === "Basic Plan"
+          ? [
+              "Ad-supported listening",
+              "Mobile app access",
+              "Standard audio quality",
+            ]
+          : plan.name === "Premium Plan"
+          ? [
+              "Ad-free listening",
+              "Unlimited skips",
+              "High quality audio",
+              "Offline listening",
+            ]
+          : [
+              "All Premium features",
+              "Up to 6 accounts",
+              "Parental controls",
+              "Shared playlists",
+            ],
+      limitations:
+        plan.name === "Basic Plan"
+          ? ["No offline listening", "No family accounts"]
+          : plan.name === "Premium Plan"
+          ? ["No family accounts"]
+          : [],
+      popular: plan.name === "Premium Plan",
+      cta:
+        plan.name === "Basic Plan"
+          ? "Get Started"
+          : plan.name === "Premium Plan"
+          ? "Get Premium"
+          : "Get Family Plan",
+    })),
   ];
 
-  const calculateSavings = (monthlyPrice: number, yearlyPrice: number) => {
-    const monthlyCostForYear = monthlyPrice * 12;
-    const savings = monthlyCostForYear - yearlyPrice;
-    const savingsPercentage = (savings / monthlyCostForYear) * 100;
-    return Math.round(savingsPercentage);
-  };
-
   const convertPrice = (price: number) => {
-    return (price * conversionRates[currency]).toFixed(
-      currency === "tune" ? 0 : 2
-    );
+    if (currency === "SOL") {
+      return solPrice ? (price / solPrice).toFixed(6) : "—";
+    }
+    return price.toFixed(currency === "TUNE" ? 0 : 2);
   };
 
   return (
@@ -130,7 +338,7 @@ export function SubscriptionView({ onNavigate }: SubscriptionViewProps) {
         </p>
       </div>
 
-      <div className="mb-8 flex justify-center">
+      <div className="mb-12 flex flex-col items-center gap-4 sm:flex-row sm:justify-center sm:gap-6">
         <Tabs
           defaultValue="monthly"
           value={billingCycle}
@@ -142,35 +350,35 @@ export function SubscriptionView({ onNavigate }: SubscriptionViewProps) {
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="monthly">Monthly</TabsTrigger>
             <TabsTrigger value="yearly">
-              Yearly{" "}
+              Yearly
               <Badge className="ml-2 bg-primary/20 text-primary">
                 Save up to 17%
               </Badge>
             </TabsTrigger>
           </TabsList>
         </Tabs>
-      </div>
 
-      <div className="mb-8 flex justify-center">
         <Select
           value={currency}
           onValueChange={(value) =>
-            setCurrency(value as "usd" | "sol" | "tune")
+            setCurrency(value as "USD" | "TUNE" | "SOL")
           }
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Currency" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="usd">USD ($)</SelectItem>
-            <SelectItem value="sol">SOL (◎)</SelectItem>
-            <SelectItem value="tune">TUNE (♪)</SelectItem>
+            {Object.keys(currencySymbols).map((key) => (
+              <SelectItem key={key} value={key}>
+                {key} ({currencySymbols[key as keyof typeof currencySymbols]})
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {plans.map((plan) => (
+      <div className="grid gap-6 md:grid-cols-4">
+        {extendedPlans.map((plan) => (
           <Card
             key={plan.id}
             className={`flex flex-col ${
@@ -178,11 +386,9 @@ export function SubscriptionView({ onNavigate }: SubscriptionViewProps) {
             } relative overflow-hidden`}
           >
             {plan.popular && (
-              <div className="absolute top-0 right-0">
-                <Badge className="rounded-none rounded-bl-lg bg-primary text-primary-foreground">
-                  Most Popular
-                </Badge>
-              </div>
+              <Badge className="absolute top-0 right-0 rounded-none rounded-bl-lg bg-primary text-primary-foreground">
+                Most Popular
+              </Badge>
             )}
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -203,23 +409,36 @@ export function SubscriptionView({ onNavigate }: SubscriptionViewProps) {
               <div className="mb-6">
                 <div className="flex items-baseline">
                   <span className="text-3xl font-bold">
-                    {currencySymbols[currency]}
-                    {convertPrice(
-                      billingCycle === "monthly"
-                        ? plan.monthlyPrice
-                        : plan.yearlyPrice
-                    )}
+                    {plan.id === 0
+                      ? "Free"
+                      : `${currencySymbols[currency]}${convertPrice(
+                          currency === "SOL"
+                            ? billingCycle === "monthly"
+                              ? plan.subscriptionPlanCurrencies.find(
+                                  (c) => c.currency.code === "USD"
+                                )?.price || 0
+                              : (plan.subscriptionPlanCurrencies.find(
+                                  (c) => c.currency.code === "USD"
+                                )?.price || 0) *
+                                12 *
+                                0.83
+                            : billingCycle === "monthly"
+                            ? plan.subscriptionPlanCurrencies.find(
+                                (c) => c.currency.code === currency
+                              )?.price || 0
+                            : (plan.subscriptionPlanCurrencies.find(
+                                (c) => c.currency.code === currency
+                              )?.price || 0) *
+                              12 *
+                              0.83
+                        )}`}
                   </span>
-                  <span className="text-muted-foreground ml-1">
-                    /{billingCycle === "monthly" ? "month" : "year"}
-                  </span>
+                  {plan.id !== 0 && (
+                    <span className="text-muted-foreground ml-1">
+                      /{billingCycle === "monthly" ? "month" : "year"}
+                    </span>
+                  )}
                 </div>
-                {billingCycle === "yearly" && (
-                  <div className="text-sm text-primary mt-1">
-                    Save {calculateSavings(plan.monthlyPrice, plan.yearlyPrice)}
-                    % with annual billing
-                  </div>
-                )}
               </div>
 
               <div className="space-y-4">
@@ -258,121 +477,36 @@ export function SubscriptionView({ onNavigate }: SubscriptionViewProps) {
                 )}
               </div>
             </CardContent>
-            <CardFooter>
-              <Button
-                className={`w-full ${
-                  plan.popular
-                    ? ""
-                    : "bg-card hover:bg-accent text-foreground border"
-                }`}
-                variant={plan.popular ? "default" : "outline"}
-                onClick={() => onNavigate && onNavigate("profile")}
-              >
-                {plan.cta}
-              </Button>
-            </CardFooter>
+            {plan.id !== 0 && (
+              <CardFooter className="space-y-4">
+                <Button
+                  className={`w-full ${
+                    plan.popular
+                      ? ""
+                      : "bg-card hover:bg-accent text-foreground border"
+                  }`}
+                  variant={plan.popular ? "default" : "outline"}
+                  onClick={() => {
+                    handlePayment(
+                      plan.id,
+                      plan.subscriptionPlanCurrencies.find(
+                        (c) => c.currency.code === "USD"
+                      )?.price || 1,
+                      plan.subscriptionPlanCurrencies.find(
+                        (c) => c.currency.code === currency
+                      )?.currency.id || 2
+                    );
+                  }}
+                >
+                  {plan.cta}
+                </Button>
+              </CardFooter>
+            )}
           </Card>
         ))}
       </div>
 
-      <div className="mt-16 bg-card border rounded-lg p-8">
-        <div className="grid md:grid-cols-2 gap-8 items-center">
-          <div>
-            <h2 className="text-2xl font-bold mb-4">Payment Methods</h2>
-            <p className="text-muted-foreground mb-6">
-              We accept various payment methods to make your subscription
-              process seamless and secure.
-            </p>
-            <div className="flex flex-wrap gap-4">
-              <div className="flex items-center gap-2 bg-background rounded-md px-3 py-2 border">
-                <CreditCard className="h-5 w-5" />
-                <span>Credit Card</span>
-              </div>
-              <div className="flex items-center gap-2 bg-background rounded-md px-3 py-2 border">
-                <svg
-                  className="h-5 w-5"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
-                </svg>
-                <span>PayPal</span>
-              </div>
-              <div className="flex items-center gap-2 bg-background rounded-md px-3 py-2 border">
-                <svg
-                  className="h-5 w-5"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <rect width="20" height="14" x="2" y="5" rx="2" />
-                  <line x1="2" x2="22" y1="10" y2="10" />
-                </svg>
-                <span>Apple Pay</span>
-              </div>
-              <div className="flex items-center gap-2 bg-background rounded-md px-3 py-2 border">
-                <svg
-                  className="h-5 w-5"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 22V8" />
-                  <path d="m5 12-2-2 2-2" />
-                  <path d="m19 12 2-2-2-2" />
-                  <path d="M5 10h14" />
-                  <path d="m5 2 7 3 7-3" />
-                </svg>
-                <span>Crypto</span>
-              </div>
-            </div>
-          </div>
-          <div>
-            <div className="bg-background p-6 rounded-lg border">
-              <div className="flex items-center gap-3 mb-4">
-                <Shield className="h-6 w-6 text-primary" />
-                <h3 className="text-xl font-semibold">Secure Transactions</h3>
-              </div>
-              <p className="text-muted-foreground mb-4">
-                All payments are processed securely. We use industry-standard
-                encryption to protect your personal and financial information.
-              </p>
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-primary" />
-                  <span className="text-sm">256-bit SSL encryption</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-primary" />
-                  <span className="text-sm">PCI DSS compliant</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-primary" />
-                  <span className="text-sm">Fraud protection</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-primary" />
-                  <span className="text-sm">Cancel anytime</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
+      <PaymentMethods />
     </div>
   );
 }

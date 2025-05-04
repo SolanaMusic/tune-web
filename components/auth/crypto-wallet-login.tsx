@@ -102,15 +102,5 @@ const WalletDisplay: FC = () => {
     }
   }, [connected, publicKey]);
 
-  return (
-    <div>
-      {connected && publicKey ? (
-        <div>
-          <p>Wallet Address: {publicKey.toBase58()}</p>
-        </div>
-      ) : (
-        <p>Please connect your wallet.</p>
-      )}
-    </div>
-  );
+  return null;
 };
