@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { Check, X, Music, Users, Headphones } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useSolana } from "@/hooks/solana";
 import {
   Card,
   CardContent,
@@ -24,12 +25,6 @@ import {
 } from "@/components/ui/select";
 import axios from "axios";
 import PaymentMethods from "../ui/payment-methods";
-import {
-  Connection,
-  Transaction,
-  SystemProgram,
-  PublicKey,
-} from "@solana/web3.js";
 
 interface SubscriptionPlan {
   id: number;
@@ -58,6 +53,7 @@ export function SubscriptionView() {
   const [solPrice, setSolPrice] = useState<number>(0);
   const router = useRouter();
   const pathname = usePathname();
+  const { sendSolanaTransaction } = useSolana();
 
   const fetchPlans = async () => {
     try {
@@ -140,50 +136,11 @@ export function SubscriptionView() {
     planPriceUSD: number,
     currencyId: number
   ) => {
-    const provider = window.solana;
-    if (!provider) {
-      return;
-    }
-
     try {
-      const connection = new Connection(
-        `${process.env.NEXT_PUBLIC_CONNECTION_ADRESS}`,
-        "confirmed"
-      );
-
-      await provider.connect();
-      const senderPublicKey = new PublicKey(provider.publicKey.toString());
-      const recipient = new PublicKey(
-        `${process.env.NEXT_PUBLIC_WALLET_ADRESS}`
-      );
-
       const lamports = Math.round((planPriceUSD / solPrice) * 1_000_000_000);
-
-      const transaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: senderPublicKey,
-          toPubkey: recipient,
-          lamports,
-        })
-      );
-
-      const { blockhash, lastValidBlockHeight } =
-        await connection.getLatestBlockhash("finalized");
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = senderPublicKey;
-
-      const signedTransaction = await provider.signTransaction(transaction);
-      const signature = await connection.sendRawTransaction(
-        signedTransaction.serialize()
-      );
-
-      await connection.confirmTransaction(
-        {
-          signature,
-          blockhash,
-          lastValidBlockHeight,
-        },
-        "confirmed"
+      const signature = await sendSolanaTransaction(
+        process.env.NEXT_PUBLIC_WALLET_ADRESS!,
+        lamports
       );
 
       var response = await recordPayment(
