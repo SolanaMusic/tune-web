@@ -8,37 +8,16 @@ import {
   Library,
   ListMusic,
   Users,
-  PlusCircle,
   Heart,
   ShoppingBag,
-  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { toast } = useToast();
-  const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
-  const [newPlaylistData, setNewPlaylistData] = useState({
-    name: "",
-    description: "",
-  });
 
   const playlists = [
     { id: "1", name: "Discover Weekly" },
@@ -50,16 +29,6 @@ export function Sidebar() {
     { id: "7", name: "Throwback Hits" },
     { id: "8", name: "Morning Coffee" },
   ];
-
-  const handleCreatePlaylist = () => {
-    toast({
-      title: "Playlist Created",
-      description: `Your playlist "${newPlaylistData.name}" has been created.`,
-      duration: 3000,
-    });
-    setIsCreatePlaylistOpen(false);
-    setNewPlaylistData({ name: "", description: "" });
-  };
 
   const isActive = (path: string) => {
     return pathname === path;
@@ -186,19 +155,6 @@ export function Sidebar() {
             </Collapsible>
           </div>
         </ScrollArea>
-
-        <div className="p-4">
-          <Button
-            variant={pathname === "/wallet" ? "default" : "ghost"}
-            className="w-full justify-start"
-            asChild
-          >
-            <Link href="/wallet">
-              <Wallet className="mr-2 h-5 w-5" />
-              My NFTs
-            </Link>
-          </Button>
-        </div>
       </div>
     </aside>
   );

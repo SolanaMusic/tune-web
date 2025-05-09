@@ -21,8 +21,7 @@ import { clusterApiUrl } from "@solana/web3.js";
 import axios from "axios";
 
 export const CryptoWalletLogin: FC = () => {
-  const network = WalletAdapterNetwork.Testnet;
-
+  const network = WalletAdapterNetwork.Devnet;
   const endpoint = useMemo(() => clusterApiUrl(network), [network]);
 
   const wallets = useMemo(
@@ -85,7 +84,6 @@ const WalletDisplay: FC = () => {
         );
 
         if (response.status === 200 && response.data?.jwt) {
-          console.log("Server response:", response.data);
           router.push("/");
         } else {
           console.error("Server error:", response.statusText);

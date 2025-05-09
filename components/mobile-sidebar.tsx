@@ -251,19 +251,6 @@ export function MobileSidebar() {
               ))}
             </div>
           </div>
-
-          <div className="mt-6 space-y-1">
-            <Button
-              variant={pathname === "/wallet" ? "default" : "ghost"}
-              className="w-full justify-start"
-              asChild
-            >
-              <Link href="/wallet">
-                <Wallet className="mr-2 h-5 w-5" />
-                My NFTs
-              </Link>
-            </Button>
-          </div>
         </div>
       </ScrollArea>
     </div>

@@ -1,5 +1,5 @@
-import { NFTMarketplaceView } from "@/components/views/nft-marketplace-view"
+import { NFTCollectionsView } from "@/components/views/nft-collections-view";
 
 export default function NFTMarketplacePage() {
-  return <NFTMarketplaceView />
+  return <NFTCollectionsView />;
 }

@@ -1,4 +1,6 @@
 .wallet-adapter-button.wallet-adapter-button-trigger {
+  display: flex;
+  gap: 10px;
   height: 2.5rem !important;
   padding: 0rem 2.5rem !important;
   justify-content: center;

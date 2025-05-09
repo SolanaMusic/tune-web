@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,81 +13,45 @@ import {
   ArrowLeft,
   Music,
   User,
-  Clock,
+  Star,
   Calendar,
   Tag,
   BarChart3,
-  PaletteIcon,
-  AudioLines,
-  StarIcon,
-  TagIcon,
-  HelpCircleIcon,
+  Loader2,
+  ClipboardPaste,
+  Disc,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-interface NFTDetailViewProps {
-  id: string;
-}
-
-export function NFTDetailView({ id }: NFTDetailViewProps) {
+export function NFTDetailView({ id }: { id: number }) {
   const router = useRouter();
   const { toast } = useToast();
+  const [nft, setNft] = useState<any | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
 
-  const nft = {
-    id,
-    title: `Blinding Lights #${id}`,
-    type: "Track",
-    artist: "The Weeknd",
-    artistId: "a1",
-    album: "After Hours",
-    albumId: "alb1",
-    description:
-      "Limited edition NFT of the hit single 'Blinding Lights' by The Weeknd. This NFT grants exclusive access to high-quality audio files, behind-the-scenes content, and a digital collectible artwork.",
-    imageUrl: "/placeholder.svg?height=500&width=500",
-    price: 0.8,
-    currency: "SOL",
-    totalSupply: 5000,
-    minted: 3245,
-    releaseDate: "2019-11-29",
-    duration: "3:21",
-    owned: false,
-    properties: [
-      { name: "Audio Quality", value: "24-bit FLAC" },
-      { name: "Exclusive Content", value: "Yes" },
-      { name: "Artwork", value: "Animated" },
-      { name: "Rarity", value: "Rare" },
-    ],
-    history: [
-      {
-        event: "Minted",
-        date: "2023-01-15",
-        price: 0.5,
-        from: "Creator",
-        to: "User1",
-      },
-      {
-        event: "Transfer",
-        date: "2023-03-22",
-        price: 0.65,
-        from: "User1",
-        to: "User2",
-      },
-      {
-        event: "Listed",
-        date: "2023-04-10",
-        price: 0.8,
-        from: "User2",
-        to: "-",
-      },
-    ],
-  };
+  useEffect(() => {
+    const fetchNFTDetails = async () => {
+      try {
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/${id}`
+        );
+        setNft(response.data);
+      } catch (error) {
+        console.error("Error fetching NFT details:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchNFTDetails();
+  }, [id]);
 
   const handleLike = () => {
     setIsLiked(!isLiked);
     toast({
       title: isLiked ? "Removed from Favorites" : "Added to Favorites",
-      description: `"${nft.title}" has been ${
+      description: `"${nft?.name}" has been ${
         isLiked ? "removed from" : "added to"
       } your favorites.`,
       duration: 3000,
@@ -94,14 +59,14 @@ export function NFTDetailView({ id }: NFTDetailViewProps) {
   };
 
   const handleShare = () => {
-    const shareUrl = `${window.location.origin}/nft-marketplace/${nft.id}`;
+    const shareUrl = `${window.location.origin}/nft-marketplace/nft/${id}`;
 
     navigator.clipboard
       .writeText(shareUrl)
       .then(() => {
         toast({
           title: "Link Copied",
-          description: `Link to "${nft.title}" has been copied to clipboard.`,
+          description: `Link to "${nft?.name}" has been copied to clipboard.`,
           duration: 3000,
         });
       })
@@ -119,7 +84,7 @@ export function NFTDetailView({ id }: NFTDetailViewProps) {
   const handleMintNFT = () => {
     toast({
       title: "Mint Transaction Initiated",
-      description: `Starting the process to mint "${nft.title}" NFT. Please confirm in your wallet.`,
+      description: `Starting the process to mint "${nft?.name}" NFT. Please confirm in your wallet.`,
       duration: 5000,
     });
   };
@@ -128,29 +93,27 @@ export function NFTDetailView({ id }: NFTDetailViewProps) {
     router.back();
   };
 
-  const getIconForProperty = (name: string) => {
-    const propertyName = name.toLowerCase();
-
-    if (propertyName.includes("artwork")) {
-      return <PaletteIcon className="h-5 w-5 text-muted-foreground mt-0.5" />;
-    } else if (propertyName.includes("audio")) {
-      return <AudioLines className="h-5 w-5 text-muted-foreground mt-0.5" />;
-    } else if (propertyName.includes("rarity")) {
-      return <StarIcon className="h-5 w-5 text-muted-foreground mt-0.5" />;
-    } else if (propertyName.includes("content")) {
-      return <TagIcon className="h-5 w-5 text-muted-foreground mt-0.5" />;
-    } else {
-      return (
-        <HelpCircleIcon className="h-5 w-5 text-muted-foreground mt-0.5" />
-      );
-    }
+  const handleCopyAddress = () => {
+    navigator.clipboard.writeText(nft.address);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-[75vh]">
+        <Loader2 className="h-20 w-20 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-6">
-      <Button variant="ghost" className="mb-6" onClick={handleGoBack}>
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Marketplace
+      <Button
+        variant="ghost"
+        className="mb-6 flex items-center gap-2 text-lg"
+        onClick={handleGoBack}
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back
       </Button>
 
       <div className="grid gap-8 md:grid-cols-12">
@@ -158,7 +121,7 @@ export function NFTDetailView({ id }: NFTDetailViewProps) {
           <div className="overflow-hidden rounded-lg border">
             <img
               src={nft.imageUrl || "/placeholder.svg"}
-              alt={nft.title}
+              alt={nft.name}
               className="w-full object-cover"
             />
           </div>
@@ -190,34 +153,67 @@ export function NFTDetailView({ id }: NFTDetailViewProps) {
           <div>
             <div className="flex items-center gap-2">
               <Badge className="bg-primary/80 text-primary-foreground">
-                {nft.type}
+                {nft.rarity}
               </Badge>
-              <Badge variant="outline">#{id.slice(0, 8)}</Badge>
+
+              {(nft.collection.album ||
+                nft.collection.track ||
+                nft.collection.artist) && (
+                <Badge className="bg-primary/80 text-primary-foreground">
+                  {nft.collection.album
+                    ? `Album`
+                    : nft.collection.track
+                    ? `Track`
+                    : `Artist`}
+                </Badge>
+              )}
             </div>
-            <h1 className="mt-2 text-3xl font-bold">{nft.title}</h1>
-            <div className="mt-2 flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">By</span>
+
+            <h1 className="mt-2 text-3xl font-bold">{nft.name}</h1>
+            <div className="d-flex flex-column mt-1">
+              <span className="text-base text-muted-foreground">
+                Collection:
+              </span>
+              &nbsp;
               <Button
                 variant="link"
-                className="p-0 h-auto text-sm font-medium"
-                onClick={() => router.push(`/artists/${nft.artistId}`)}
+                className="p-0 h-auto text-base no-underline"
+                style={{ textDecoration: "none" }}
+                onClick={() =>
+                  router.push(
+                    `/nft-marketplace/collection/${nft.collection.id}`
+                  )
+                }
               >
-                {nft.artist}
-              </Button>
-              <span className="text-sm text-muted-foreground">from</span>
-              <Button
-                variant="link"
-                className="p-0 h-auto text-sm font-medium"
-                onClick={() => router.push(`/albums/${nft.albumId}`)}
-              >
-                {nft.album}
+                {nft.collection.name}
               </Button>
             </div>
           </div>
 
-          <p className="text-muted-foreground">{nft.description}</p>
-
           <div className="grid grid-cols-2 gap-4">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={handleCopyAddress}
+            >
+              <ClipboardPaste className="h-4 w-4" />#{nft.address}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() =>
+                window.open(
+                  `https://solscan.io/token/${nft.address}?cluster=devnet`,
+                  "_blank"
+                )
+              }
+            >
+              <Disc className="h-4 w-4" />
+              View on Solscan
+            </Button>
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
@@ -225,7 +221,7 @@ export function NFTDetailView({ id }: NFTDetailViewProps) {
                   <span className="text-sm font-medium">Price</span>
                 </div>
                 <div className="mt-1 text-2xl font-bold">
-                  {nft.price} {nft.currency}
+                  {nft.price} {nft.currency.code}
                 </div>
               </CardContent>
             </Card>
@@ -233,18 +229,10 @@ export function NFTDetailView({ id }: NFTDetailViewProps) {
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
                   <BarChart3 className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">Availability</span>
+                  <span className="text-sm font-medium">Status</span>
                 </div>
                 <div className="mt-1 text-lg font-medium">
-                  {nft.minted}/{nft.totalSupply}
-                </div>
-                <div className="mt-2 w-full bg-muted rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full"
-                    style={{
-                      width: `${(nft.minted / nft.totalSupply) * 100}%`,
-                    }}
-                  ></div>
+                  {nft.available ? "Available for Mint" : `Minted`}
                 </div>
               </CardContent>
             </Card>
@@ -253,11 +241,11 @@ export function NFTDetailView({ id }: NFTDetailViewProps) {
           <Button
             className="w-full"
             onClick={handleMintNFT}
-            disabled={nft.minted >= nft.totalSupply || nft.owned}
+            disabled={
+              nft.collection.minted >= nft.collection.supply || !nft.available
+            }
           >
-            {nft.owned
-              ? "Owned"
-              : nft.minted >= nft.totalSupply
+            {!nft.available || nft.collection.minted >= nft.collection.supply
               ? "Sold Out"
               : "Mint NFT"}
           </Button>
@@ -273,26 +261,35 @@ export function NFTDetailView({ id }: NFTDetailViewProps) {
               <div className="grid grid-cols-2 gap-4">
                 <Card>
                   <CardContent className="p-4">
-                    <div className="flex items-center gap-2">
-                      <Music className="h-5 w-5 text-muted-foreground mt-0.5" />
-                      <div>
-                        <div className="font-medium">Track Duration</div>
-                        <div className="text-sm text-muted-foreground">
-                          {nft.duration}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       <User className="h-5 w-5 text-muted-foreground mt-0.5" />
                       <div>
-                        <div className="font-medium">Creator</div>
-                        <div className="text-sm text-muted-foreground">
-                          {nft.artist}
-                        </div>
+                        <div className="font-medium">Creators</div>
+                        {nft.collection.creators &&
+                        nft.collection.creators.length > 0 ? (
+                          nft.collection.creators.map((creator, index) => (
+                            <span
+                              key={creator.id}
+                              className="flex items-center"
+                            >
+                              <Button
+                                variant="link"
+                                className="p-0 h-auto text-sm font-medium no-underline"
+                                style={{ textDecoration: "none" }}
+                                onClick={() =>
+                                  router.push(`/artists/${creator.id}`)
+                                }
+                              >
+                                {creator.name}
+                              </Button>
+                              {index < nft.collection.creators.length - 1 && (
+                                <span>,&nbsp;</span>
+                              )}
+                            </span>
+                          ))
+                        ) : (
+                          <span>No creators available</span>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -303,22 +300,15 @@ export function NFTDetailView({ id }: NFTDetailViewProps) {
                       <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
                       <div>
                         <div className="font-medium">Release Date</div>
-                        <div className="text-sm text-muted-foreground">
-                          {nft.releaseDate}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />
-                      <div>
-                        <div className="font-medium">Minting Ends</div>
-                        <div className="text-sm text-muted-foreground">
-                          December 31, 2023
-                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(nft.createdDate).toLocaleString("en-GB", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
                       </div>
                     </div>
                   </CardContent>
@@ -328,49 +318,49 @@ export function NFTDetailView({ id }: NFTDetailViewProps) {
 
             <TabsContent value="properties" className="pt-4">
               <div className="grid grid-cols-2 gap-4">
-                {nft.properties.map((property, index) => (
-                  <Card key={index}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-2">
-                        {getIconForProperty(property.name)}
-                        <div>
-                          {property.name}
-                          <div className="text-sm text-muted-foreground">
-                            {property.value}
-                          </div>
-                        </div>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <Music className="h-5 w-5 text-muted-foreground mt-0.5" />
+                      <div>
+                        <div className="font-medium">Audio Quality</div>
+                        <p className="text-sm text-muted-foreground">
+                          24-bit FLAC
+                        </p>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2">
+                      <Star className="h-6 w-5 text-muted-foreground mt-0.5" />
+                      <div>
+                        <div className="font-medium">Rarity</div>
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <span
+                            className={`w-3 h-3 rounded-full ${
+                              nft.rarity === "Legendary"
+                                ? "bg-yellow-500"
+                                : nft.rarity === "Mythic"
+                                ? "bg-red-500"
+                                : nft.rarity === "Epic"
+                                ? "bg-purple-500"
+                                : nft.rarity === "Rare"
+                                ? "bg-green-500"
+                                : "bg-blue-500"
+                            }`}
+                          ></span>
+                          {nft.rarity}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </TabsContent>
 
-            <TabsContent value="history" className="pt-4">
-              <div className="space-y-4">
-                {nft.history.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between border-b pb-4"
-                  >
-                    <div>
-                      <div className="font-medium">{item.event}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {item.from} {item.to !== "-" ? `→ ${item.to}` : ""}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div>
-                        {item.price} {nft.currency}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {item.date}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </TabsContent>
+            <TabsContent value="history" className="pt-4"></TabsContent>
           </Tabs>
         </div>
       </div>
