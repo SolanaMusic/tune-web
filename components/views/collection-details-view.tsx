@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
+import { useSolana } from "@/hooks/use-solana";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -45,47 +46,42 @@ import {
   PaginationEllipsis,
 } from "@/components/ui/pagination";
 import { MyWallet } from "../ui/mywallet";
+import { PurchaseModal } from "@/components/ui/nft-dialog";
 
 export function CollectionDetailView({ id }: { id: string }) {
   const router = useRouter();
   const { toast } = useToast();
+  const { mintNft } = useSolana();
   const [collection, setCollection] = useState<any | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [priceRange, setPriceRange] = useState([0, 10]);
   const [statusFilter, setStatusFilter] = useState("");
   const [likedNFTs, setLikedNFTs] = useState<Record<string, boolean>>({});
   const [currentPage, setCurrentPage] = useState(1);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedNFT, setSelectedNFT] = useState<any | null>(null);
   const itemsPerPage = 10;
 
   useEffect(() => {
-    const fetchCollectionData = async () => {
-      try {
-        const response = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/collection/${id}`
-        );
-        setCollection(response.data);
-      } catch (error) {
-        console.error("Failed to fetch collection data:", error);
-        toast({
-          title: "Error",
-          description:
-            "Failed to fetch collection data. Please try again later.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchCollectionData();
   }, [id, toast]);
 
-  const handlePurchaseNFT = (nftId: string, nftName: string) => {
-    toast({
-      title: "Purchase Transaction Initiated",
-      description: `Starting the process to purchase "${nftName}" NFT. Please confirm in your wallet.`,
-      duration: 5000,
-    });
+  const fetchCollectionData = async () => {
+    try {
+      const response = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/collection/${id}`
+      );
+      setCollection(response.data);
+    } catch (error) {
+      console.error("Failed to fetch collection data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch collection data. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLike = (nftId: string, nftName: string) => {
@@ -152,6 +148,29 @@ export function CollectionDetailView({ id }: { id: string }) {
 
   const handleNavigateToNFT = (nftId: string) => {
     router.push(`/nft-marketplace/nft/${nftId}`);
+  };
+
+  const handlePurchase = async () => {
+    try {
+      const transactionId = await mintNft(
+        selectedNFT.id,
+        selectedNFT.address,
+        selectedNFT.price
+      );
+      if (!transactionId) {
+        throw new Error("Minting failed");
+      }
+
+      await fetchCollectionData();
+    } catch (error) {
+      console.error("Error during minting:", error);
+      throw error;
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedNFT(null);
   };
 
   const getFilteredNFTs = () => {
@@ -460,6 +479,20 @@ export function CollectionDetailView({ id }: { id: string }) {
           <MyWallet />
         </div>
 
+        {selectedNFT && isModalOpen && (
+          <PurchaseModal
+            name={selectedNFT.name}
+            image={selectedNFT.imageUrl}
+            collection={collection.name}
+            price={selectedNFT.price}
+            currency={selectedNFT.currency.code}
+            address={selectedNFT.address}
+            isOpen={!!selectedNFT}
+            onClose={handleCloseModal}
+            onConfirm={handlePurchase}
+          />
+        )}
+
         <div className="md:col-span-3">
           <h2 className="text-2xl font-bold mb-6">NFTs in this Collection</h2>
 
@@ -570,7 +603,10 @@ export function CollectionDetailView({ id }: { id: string }) {
                       }`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handlePurchaseNFT(nft.id, nft.name);
+                        if (nft.available) {
+                          setSelectedNFT(nft);
+                          setIsModalOpen(true);
+                        }
                       }}
                     >
                       {!nft.available ? "Minted" : "Mint NFT"}

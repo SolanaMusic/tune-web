@@ -1,3 +1,4 @@
+require("dotenv").config({ path: ".env.local" });
 const express = require("express");
 const https = require("https");
 const axios = require("axios");
@@ -63,7 +64,7 @@ app.post("/create-nft", async (req, res) => {
     console.log("Starting NFT creation process...");
     const connection = new Connection(clusterApiUrl("devnet"));
 
-    const user = await getKeypairFromFile("D:\\Projects\\node test\\id.json");
+    const user = await getKeypairFromFile(process.env.WALLET_KEY_FILE);
     console.log("User loaded from file:", user.publicKey.toBase58());
 
     await airdropIfRequired(
@@ -170,7 +171,7 @@ app.post("/create-nft", async (req, res) => {
       nfts,
     };
 
-    await axios.post("https://localhost:7210/api/nfts", requestBody, {
+    await axios.post(`${process.env.API_BASE_URL}nfts`, requestBody, {
       headers: {
         "Content-Type": "application/json",
       },

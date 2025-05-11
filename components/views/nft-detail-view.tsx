@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PurchaseModal } from "@/components/ui/nft-dialog";
 import {
   Heart,
   Share2,
@@ -22,6 +23,7 @@ import {
   Disc,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useSolana } from "@/hooks/use-solana";
 
 export function NFTDetailView({ id }: { id: number }) {
   const router = useRouter();
@@ -29,23 +31,25 @@ export function NFTDetailView({ id }: { id: number }) {
   const [nft, setNft] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { mintNft } = useSolana();
 
   useEffect(() => {
-    const fetchNFTDetails = async () => {
-      try {
-        const response = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/${id}`
-        );
-        setNft(response.data);
-      } catch (error) {
-        console.error("Error fetching NFT details:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchNFTDetails();
   }, [id]);
+
+  const fetchNFTDetails = async () => {
+    try {
+      const response = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/${id}`
+      );
+      setNft(response.data);
+    } catch (error) {
+      console.error("Error fetching NFT details:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleLike = () => {
     setIsLiked(!isLiked);
@@ -81,12 +85,18 @@ export function NFTDetailView({ id }: { id: number }) {
       });
   };
 
-  const handleMintNFT = () => {
-    toast({
-      title: "Mint Transaction Initiated",
-      description: `Starting the process to mint "${nft?.name}" NFT. Please confirm in your wallet.`,
-      duration: 5000,
-    });
+  const handlePurchase = async () => {
+    try {
+      const transactionId = await mintNft(nft.id, nft.address, nft.price);
+      if (!transactionId) {
+        throw new Error("Minting failed");
+      }
+
+      await fetchNFTDetails();
+    } catch (error) {
+      console.error("Error during minting:", error);
+      throw error;
+    }
   };
 
   const handleGoBack = () => {
@@ -205,7 +215,7 @@ export function NFTDetailView({ id }: { id: number }) {
               className="gap-2"
               onClick={() =>
                 window.open(
-                  `https://solscan.io/token/${nft.address}?cluster=devnet`,
+                  `${process.env.NEXT_PUBLIC_API_BASE_URL}token/${nft.address}?cluster=devnet`,
                   "_blank"
                 )
               }
@@ -240,7 +250,7 @@ export function NFTDetailView({ id }: { id: number }) {
 
           <Button
             className="w-full"
-            onClick={handleMintNFT}
+            onClick={() => setIsModalOpen(true)}
             disabled={
               nft.collection.minted >= nft.collection.supply || !nft.available
             }
@@ -249,6 +259,18 @@ export function NFTDetailView({ id }: { id: number }) {
               ? "Sold Out"
               : "Mint NFT"}
           </Button>
+
+          <PurchaseModal
+            name={nft.name}
+            image={nft.imageUrl}
+            collection={nft.collection.name}
+            price={nft.price}
+            currency={nft.currency.code}
+            address={nft.address}
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            onConfirm={handlePurchase}
+          />
 
           <Tabs defaultValue="details">
             <TabsList className="grid w-full grid-cols-3">

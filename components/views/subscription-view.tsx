@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { Check, X, Music, Users, Headphones } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useSolana } from "@/hooks/solana";
+import { useSolana } from "@/hooks/use-solana";
 import {
   Card,
   CardContent,
@@ -139,7 +139,7 @@ export function SubscriptionView() {
     try {
       const lamports = Math.round((planPriceUSD / solPrice) * 1_000_000_000);
       const signature = await sendSolanaTransaction(
-        process.env.NEXT_PUBLIC_WALLET_ADRESS!,
+        process.env.NEXT_PUBLIC_SYSTEM_WALLET_ADRESS!,
         lamports
       );
 
