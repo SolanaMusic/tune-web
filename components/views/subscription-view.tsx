@@ -48,7 +48,11 @@ export function SubscriptionView() {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">(
     "monthly"
   );
-  const [currency, setCurrency] = useState<"USD" | "TUNE" | "SOL">("USD");
+  const [currencies, setCurrencies] = useState<
+    { id: number; code: string; symbol: string }[]
+  >([]);
+
+  const [currency, setCurrency] = useState<string>("USD");
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [solPrice, setSolPrice] = useState<number>(0);
   const router = useRouter();
@@ -191,9 +195,21 @@ export function SubscriptionView() {
     }
   };
 
+  const fetchCurrencies = async () => {
+    try {
+      const response = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}currencies`
+      );
+      setCurrencies(response.data);
+    } catch (error) {
+      console.error("Failed to fetch currencies", error);
+    }
+  };
+
   useEffect(() => {
     fetchPlans();
     connectToBinanceSocket();
+    fetchCurrencies();
   }, []);
 
   const currencySymbols = {
@@ -281,7 +297,9 @@ export function SubscriptionView() {
     if (currency === "SOL") {
       return solPrice ? (price / solPrice).toFixed(6) : "—";
     }
-    return price.toFixed(currency === "TUNE" ? 0 : 2);
+    return price.toFixed(
+      currencies.find((c) => c.code === currency)?.code === "TUNE" ? 0 : 2
+    );
   };
 
   return (
@@ -317,17 +335,15 @@ export function SubscriptionView() {
 
         <Select
           value={currency}
-          onValueChange={(value) =>
-            setCurrency(value as "USD" | "TUNE" | "SOL")
-          }
+          onValueChange={(value) => setCurrency(value as any)}
         >
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Currency" />
           </SelectTrigger>
           <SelectContent>
-            {Object.keys(currencySymbols).map((key) => (
-              <SelectItem key={key} value={key}>
-                {key} ({currencySymbols[key as keyof typeof currencySymbols]})
+            {currencies.map((cur) => (
+              <SelectItem key={cur.code} value={cur.code}>
+                {cur.code} ({cur.symbol})
               </SelectItem>
             ))}
           </SelectContent>

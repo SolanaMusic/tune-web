@@ -46,7 +46,7 @@ import {
   PaginationEllipsis,
 } from "@/components/ui/pagination";
 import { MyWallet } from "../ui/mywallet";
-import { PurchaseModal } from "@/components/ui/nft-dialog";
+import { PurchaseModal } from "@/components/modals/nft-modal";
 
 export function CollectionDetailView({ id }: { id: string }) {
   const router = useRouter();
@@ -69,7 +69,7 @@ export function CollectionDetailView({ id }: { id: string }) {
   const fetchCollectionData = async () => {
     try {
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/collection/${id}`
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/collections/${id}`
       );
       setCollection(response.data);
     } catch (error) {

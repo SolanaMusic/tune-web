@@ -27,6 +27,7 @@ import {
   Heart,
   Share2,
   Loader2,
+  List,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -42,7 +43,7 @@ import {
 export function NFTCollectionsView() {
   const router = useRouter();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("albums");
+  const [activeTab, setActiveTab] = useState("all");
   const [data, setData] = useState<any[]>([]);
   const [priceRange, setPriceRange] = useState([0, 10]);
   const [statusFilter, setStatusFilter] = useState("");
@@ -54,11 +55,10 @@ export function NFTCollectionsView() {
 
   const fetchNFTData = async (type: string) => {
     try {
+      const params = type && type !== "all" ? { type } : {};
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/collection`,
-        {
-          params: { type },
-        }
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/collections`,
+        { params }
       );
 
       setData(response.data);
@@ -74,7 +74,8 @@ export function NFTCollectionsView() {
   };
 
   useEffect(() => {
-    fetchNFTData(activeTab.slice(0, -1));
+    const tabToFetch = activeTab === "all" ? activeTab : activeTab.slice(0, -1);
+    fetchNFTData(tabToFetch);
     setLoading(false);
   }, [activeTab]);
 
@@ -352,11 +353,15 @@ export function NFTCollectionsView() {
 
         <div className="md:col-span-3">
           <Tabs
-            defaultValue="albums"
+            defaultValue="all"
             value={activeTab}
             onValueChange={handleTabChange}
           >
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="all" className="flex items-center gap-2">
+                <List className="h-4 w-4" />
+                All
+              </TabsTrigger>
               <TabsTrigger value="albums" className="flex items-center gap-2">
                 <Disc className="h-4 w-4" />
                 Albums

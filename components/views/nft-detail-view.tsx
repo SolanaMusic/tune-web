@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PurchaseModal } from "@/components/ui/nft-dialog";
+import { PurchaseModal } from "@/components/modals/nft-modal";
 import {
   Heart,
   Share2,
@@ -215,7 +215,7 @@ export function NFTDetailView({ id }: { id: number }) {
               className="gap-2"
               onClick={() =>
                 window.open(
-                  `${process.env.NEXT_PUBLIC_API_BASE_URL}token/${nft.address}?cluster=devnet`,
+                  `${process.env.NEXT_PUBLIC_SOLSCAN_URL}token/${nft.address}?cluster=devnet`,
                   "_blank"
                 )
               }

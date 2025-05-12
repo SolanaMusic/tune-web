@@ -22,3 +22,15 @@
 .wallet-adapter-dropdown-list.false {
   display: none !important;
 }
+
+input[type="range"]::-webkit-slider-thumb {
+  @apply h-3.5 w-3.5 rounded-full bg-primary shadow-md;
+  appearance: none;
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  @apply h-3.5 w-3.5 rounded-full bg-primary shadow-md;
+  border: none;
+  cursor: pointer;
+}
