@@ -1,16 +1,12 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { usePathname, useRouter } from "next/navigation"
-import { Header } from "@/components/header"
-import { Sidebar } from "@/components/sidebar"
-import { Player } from "@/components/player"
+import { useState } from "react";
+import { Header } from "@/components/header";
+import { Sidebar } from "@/components/sidebar";
+import { Player } from "@/components/player";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
-  const pathname = usePathname()
+  const [isVideoMode, setIsVideoMode] = useState(false);
 
   const [currentTrack, setCurrentTrack] = useState({
     id: "1",
@@ -20,23 +16,27 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     cover: "/placeholder.svg?height=60&width=60",
     duration: 203,
     isPlaying: false,
-  })
-
-  const [isVideoMode, setIsVideoMode] = useState(false)
+  });
 
   const togglePlay = () => {
     setCurrentTrack((prev) => ({
       ...prev,
       isPlaying: !prev.isPlaying,
-    }))
-  }
+    }));
+  };
 
   const toggleVideoMode = () => {
-    setIsVideoMode((prev) => !prev)
-  }
+    setIsVideoMode((prev) => !prev);
+  };
 
   return (
-    <div className="flex h-screen flex-col bg-background text-foreground">
+    <div
+      className="flex h-screen flex-col bg-background text-foreground"
+      style={{
+        paddingTop: "env(safe-area-inset-top)",
+        paddingBottom: "env(safe-area-inset-bottom)",
+      }}
+    >
       <Header />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
@@ -49,5 +49,5 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         onToggleVideoMode={toggleVideoMode}
       />
     </div>
-  )
+  );
 }

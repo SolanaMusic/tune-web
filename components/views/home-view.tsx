@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import axios from "axios";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Play, Pause } from "lucide-react";
@@ -9,135 +10,10 @@ import { Play, Pause } from "lucide-react";
 export function HomeView() {
   const router = useRouter();
   const [playingItem, setPlayingItem] = useState<string | null>(null);
-
-  const featuredPlaylists = [
-    {
-      id: "1",
-      title: "Discover Weekly",
-      description: "Your weekly mixtape of fresh music",
-      cover: "/placeholder.svg?height=200&width=200",
-    },
-    {
-      id: "2",
-      title: "Release Radar",
-      description: "Catch all the latest music from artists you follow",
-      cover: "/placeholder.svg?height=200&width=200",
-    },
-    {
-      id: "3",
-      title: "Chill Vibes",
-      description: "Laid back beats for relaxation",
-      cover: "/placeholder.svg?height=200&width=200",
-    },
-    {
-      id: "4",
-      title: "Workout Mix",
-      description: "Energy-boosting tracks for your exercise",
-      cover: "/placeholder.svg?height=200&width=200",
-    },
-    {
-      id: "5",
-      title: "Road Trip",
-      description: "Perfect soundtrack for your journey",
-      cover: "/placeholder.svg?height=200&width=200",
-    },
-    {
-      id: "6",
-      title: "Study Focus",
-      description: "Concentration-enhancing music",
-      cover: "/placeholder.svg?height=200&width=200",
-    },
-  ];
-
-  const recentlyPlayed = [
-    {
-      id: "101",
-      title: "Blinding Lights",
-      artist: "The Weeknd",
-      cover: "/placeholder.svg?height=120&width=120",
-    },
-    {
-      id: "102",
-      title: "As It Was",
-      artist: "Harry Styles",
-      cover: "/placeholder.svg?height=120&width=120",
-    },
-    {
-      id: "103",
-      title: "Bad Habits",
-      artist: "Ed Sheeran",
-      cover: "/placeholder.svg?height=120&width=120",
-    },
-    {
-      id: "104",
-      title: "Stay",
-      artist: "The Kid LAROI, Justin Bieber",
-      cover: "/placeholder.svg?height=120&width=120",
-    },
-    {
-      id: "105",
-      title: "Heat Waves",
-      artist: "Glass Animals",
-      cover: "/placeholder.svg?height=120&width=120",
-    },
-  ];
-
-  const trendingNow = [
-    {
-      id: "201",
-      title: "Flowers",
-      artist: "Miley Cyrus",
-      cover: "/placeholder.svg?height=120&width=120",
-    },
-    {
-      id: "202",
-      title: "Kill Bill",
-      artist: "SZA",
-      cover: "/placeholder.svg?height=120&width=120",
-    },
-    {
-      id: "203",
-      title: "Anti-Hero",
-      artist: "Taylor Swift",
-      cover: "/placeholder.svg?height=120&width=120",
-    },
-    {
-      id: "204",
-      title: "Unholy",
-      artist: "Sam Smith, Kim Petras",
-      cover: "/placeholder.svg?height=120&width=120",
-    },
-    {
-      id: "205",
-      title: "Creepin'",
-      artist: "Metro Boomin, The Weeknd",
-      cover: "/placeholder.svg?height=120&width=120",
-    },
-  ];
-
-  const popularArtists = [
-    {
-      id: "a1",
-      name: "The Weeknd",
-      cover: "/placeholder.svg?height=120&width=120",
-    },
-    {
-      id: "a2",
-      name: "Taylor Swift",
-      cover: "/placeholder.svg?height=120&width=120",
-    },
-    { id: "a3", name: "Drake", cover: "/placeholder.svg?height=120&width=120" },
-    {
-      id: "a4",
-      name: "Billie Eilish",
-      cover: "/placeholder.svg?height=120&width=120",
-    },
-    {
-      id: "a5",
-      name: "Ed Sheeran",
-      cover: "/placeholder.svg?height=120&width=120",
-    },
-  ];
+  const [artists, setArtists] = useState<[]>([]);
+  const [albums, setAlbums] = useState<[]>([]);
+  const [tracks, setTracks] = useState<[]>([]);
+  const [recentlyPlayed, setRecentlyPlayed] = useState<[]>([]);
 
   const handlePlayItem = (type: string, id: string) => {
     const itemKey = `${type}-${id}`;
@@ -152,23 +28,49 @@ export function HomeView() {
     router.push(`/playlists/${id}`);
   };
 
+  useEffect(() => {
+    const fetchAll = async () => {
+      try {
+        const [artistsRes, albumsRes, tracksRes, recRes] = await Promise.all([
+          axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}artists`),
+          axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}albums`),
+          axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}tracks`),
+          axios.get(
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}tracks/recently-played/2`
+          ),
+        ]);
+
+        setArtists(artistsRes.data);
+        setAlbums(albumsRes.data);
+        setTracks(tracksRes.data);
+        setRecentlyPlayed(recRes.data);
+      } catch (error) {
+        console.error("Failed to fetch data", error);
+      }
+    };
+
+    fetchAll();
+  }, []);
+
   return (
     <div className="space-y-8 p-6">
-      {/* Popular Artists Section */}
       <section>
         <h2 className="mb-4 text-2xl font-bold">Popular Artists</h2>
-        <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-5">
-          {popularArtists.map((artist) => (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          {artists.map((artist) => (
             <div
               key={artist.id}
               className="group cursor-pointer"
               onClick={() => navigateToArtist(artist.id)}
             >
-              <div className="overflow-hidden rounded-full">
+              <div className="overflow-hidden rounded-full aspect-square">
                 <img
-                  src={artist.cover || "/placeholder.svg"}
+                  src={
+                    `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${artist.imageUrl}` ||
+                    "/placeholder.svg"
+                  }
                   alt={artist.name}
-                  className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 />
               </div>
               <div className="mt-2 text-center">
@@ -180,19 +82,71 @@ export function HomeView() {
       </section>
 
       <section>
-        <h2 className="mb-4 text-2xl font-bold">Featured Playlists</h2>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-          {featuredPlaylists.map((playlist) => (
+        <h2 className="mb-4 text-2xl font-bold">Featured Albums</h2>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+          {albums.map((album) => (
             <Card
-              key={playlist.id}
+              key={album.id}
               className="group cursor-pointer transition-all hover:bg-accent"
-              onClick={() => navigateToPlaylist(playlist.id)}
+              onClick={() => navigateToPlaylist(album.id)}
+            >
+              <CardContent className="p-3">
+                <div className="relative overflow-hidden rounded-md aspect-square">
+                  <img
+                    src={
+                      `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${album.imageUrl}` ||
+                      "/placeholder.svg"
+                    }
+                    alt={album.title}
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="h-12 w-12 rounded-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePlayItem("playlist", album.id);
+                      }}
+                    >
+                      {playingItem === `playlist-${album.id}` ? (
+                        <Pause className="h-6 w-6" />
+                      ) : (
+                        <Play className="h-6 w-6" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <h3 className="font-semibold line-clamp-1">{album.title}</h3>
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {album.description}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-4 text-2xl font-bold">Trending Now</h2>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          {tracks.map((track) => (
+            <Card
+              key={track.id}
+              className="group cursor-pointer transition-all hover:bg-accent"
+              onClick={() => router.push(`/albums/1`)}
             >
               <CardContent className="p-3">
                 <div className="relative overflow-hidden rounded-md">
                   <img
-                    src={playlist.cover || "/placeholder.svg"}
-                    alt={playlist.title}
+                    src={
+                      `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${track.imageUrl}` ||
+                      "/placeholder.svg"
+                    }
+                    alt={track.title}
                     className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
@@ -202,10 +156,10 @@ export function HomeView() {
                       className="h-12 w-12 rounded-full"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handlePlayItem("playlist", playlist.id);
+                        handlePlayItem("trending", track.id);
                       }}
                     >
-                      {playingItem === `playlist-${playlist.id}` ? (
+                      {playingItem === `trending-${track.id}` ? (
                         <Pause className="h-6 w-6" />
                       ) : (
                         <Play className="h-6 w-6" />
@@ -214,11 +168,9 @@ export function HomeView() {
                   </div>
                 </div>
                 <div className="mt-2">
-                  <h3 className="font-semibold line-clamp-1">
-                    {playlist.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    {playlist.description}
+                  <h3 className="font-semibold line-clamp-1">{track.title}</h3>
+                  <p className="text-sm text-muted-foreground line-clamp-1">
+                    {track.artist}
                   </p>
                 </div>
               </CardContent>
@@ -239,7 +191,10 @@ export function HomeView() {
               <CardContent className="p-3">
                 <div className="relative overflow-hidden rounded-md">
                   <img
-                    src={track.cover || "/placeholder.svg"}
+                    src={
+                      `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${track.imageUrl}` ||
+                      "/placeholder.svg"
+                    }
                     alt={track.title}
                     className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />
@@ -270,52 +225,6 @@ export function HomeView() {
                       navigateToArtist("a1");
                     }}
                   >
-                    {track.artist}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <h2 className="mb-4 text-2xl font-bold">Trending Now</h2>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {trendingNow.map((track) => (
-            <Card
-              key={track.id}
-              className="group cursor-pointer transition-all hover:bg-accent"
-              onClick={() => router.push(`/albums/1`)}
-            >
-              <CardContent className="p-3">
-                <div className="relative overflow-hidden rounded-md">
-                  <img
-                    src={track.cover || "/placeholder.svg"}
-                    alt={track.title}
-                    className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      className="h-12 w-12 rounded-full"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handlePlayItem("trending", track.id);
-                      }}
-                    >
-                      {playingItem === `trending-${track.id}` ? (
-                        <Pause className="h-6 w-6" />
-                      ) : (
-                        <Play className="h-6 w-6" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-                <div className="mt-2">
-                  <h3 className="font-semibold line-clamp-1">{track.title}</h3>
-                  <p className="text-sm text-muted-foreground line-clamp-1">
                     {track.artist}
                   </p>
                 </div>

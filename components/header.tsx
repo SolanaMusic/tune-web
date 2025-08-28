@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -29,8 +28,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function Header() {
-  const router = useRouter();
-  const pathname = usePathname();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(true);
   const [isAdmin, setIsAdmin] = useState(true);
@@ -51,7 +48,7 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background px-4 md:px-6">
+    <header className="sticky z-10 flex h-16 items-center justify-between border-b bg-background px-4 md:px-6">
       <div className="flex items-center gap-4">
         <Sheet>
           <SheetTrigger asChild>
@@ -65,7 +62,7 @@ export function Header() {
           </SheetContent>
         </Sheet>
 
-        <Link href="/" className="hidden items-center gap-2 md:flex">
+        <Link href="/" className="hidden items-center gap-3 md:flex">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary">
             <Image src="/favicon.png" alt="favicon" width={40} height={40} />
           </div>

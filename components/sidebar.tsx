@@ -41,7 +41,13 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="hidden w-64 flex-shrink-0 border-r bg-card md:block">
+    <aside
+      className="hidden w-64 flex-shrink-0 border-r bg-card md:block"
+      style={{
+        paddingTop: "env(safe-area-inset-top)",
+        paddingBottom: "env(safe-area-inset-bottom)",
+      }}
+    >
       <div className="flex h-full flex-col">
         <div className="p-4">
           <div className="space-y-1">
@@ -113,7 +119,7 @@ export function Sidebar() {
               className="w-full justify-start"
               asChild
             >
-              <Link href="/artist-nft-collections">
+              <Link href="/artist-nft-collections/1">
                 <LayoutGrid className="mr-2 h-4 w-4" />
                 NFT Collections
               </Link>
@@ -148,7 +154,7 @@ export function Sidebar() {
               asChild
             >
               <Link href="/playlists/liked">
-                <Heart className="mr-2 h-4 w-4 text-primary" />
+                <Heart className="mr-2 h-4 w-4" />
                 Liked Songs
               </Link>
             </Button>
@@ -158,18 +164,20 @@ export function Sidebar() {
               asChild
             >
               <Link href="/liked-nfts">
-                <Heart className="mr-2 h-4 w-4 text-primary" />
+                <Heart className="mr-2 h-4 w-4" />
                 Liked NFTs
               </Link>
             </Button>
 
             <Button
-              variant="ghost"
+              variant={pathname === "/playlists" ? "default" : "ghost"}
               className="w-full justify-start"
-              onClick={() => router.push("/playlists")}
+              asChild
             >
-              <ListMusic className="mr-2 h-4 w-4" />
-              Your Playlists
+              <Link href="/playlists">
+                <ListMusic className="mr-2 h-4 w-4" />
+                Your Playlists
+              </Link>
             </Button>
 
             <Collapsible className="w-full">

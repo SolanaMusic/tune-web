@@ -1,4 +1,4 @@
-import React, { FC, useMemo, useState, useEffect } from "react";
+import React, { FC, useMemo, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
@@ -33,6 +33,30 @@ export const CryptoWalletLogin: FC = () => {
     ],
     [network]
   );
+
+  useEffect(() => {
+    const resizeButton = () => {
+      const dropdown = document.querySelector<HTMLDivElement>(
+        ".wallet-adapter-dropdown"
+      );
+      if (dropdown) {
+        const width = dropdown.getBoundingClientRect().width;
+
+        const button = document.querySelector<HTMLDivElement>(
+          ".wallet-adapter-button.wallet-adapter-button-trigger"
+        );
+
+        if (button) {
+          button.style.width = `${width}px`;
+        }
+      }
+    };
+
+    setTimeout(resizeButton, 100);
+    window.addEventListener("resize", resizeButton);
+
+    return () => window.removeEventListener("resize", resizeButton);
+  }, []);
 
   return (
     <ConnectionProvider endpoint={endpoint}>
@@ -73,7 +97,7 @@ const WalletDisplay: FC = () => {
           walletName: wallet.adapter.name,
         };
 
-        var response = await axios.post(
+        const response = await axios.post(
           `${process.env.NEXT_PUBLIC_API_BASE_URL}auth/solana-wallet-auth`,
           body,
           {
@@ -86,7 +110,7 @@ const WalletDisplay: FC = () => {
         if (response.status === 200 && response.data?.jwt) {
           router.push("/");
         } else {
-          console.error("Server error:", response.statusText);
+          console.error("Auth error:", response.statusText);
         }
       } catch (error) {
         console.error("Error signing message:", error);

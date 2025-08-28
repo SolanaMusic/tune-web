@@ -1,21 +1,21 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { Header } from "@/components/header"
-import { Sidebar } from "@/components/sidebar"
-import { Player } from "@/components/player"
-import type { ViewType } from "@/components/music-app"
-import { ThemeProvider } from "@/components/theme-provider"
+import { useState } from "react";
+import { Header } from "@/components/header";
+import { Sidebar } from "@/components/sidebar";
+import { Player } from "@/components/player";
+import type { ViewType } from "@/components/music-app";
+import { ThemeProvider } from "@/components/theme-provider";
 
 interface LayoutProps {
-  children: React.ReactNode
-  onNavigate: (view: ViewType, playlistId?: string) => void
+  children: React.ReactNode;
+  onNavigate: (view: ViewType, playlistId?: string) => void;
 }
 
 export function Layout({ children, onNavigate }: LayoutProps) {
-  const [isVideoMode, setIsVideoMode] = useState(false)
+  const [isVideoMode, setIsVideoMode] = useState(false);
   const [currentTrack, setCurrentTrack] = useState({
     id: "1",
     title: "Blinding Lights",
@@ -24,25 +24,31 @@ export function Layout({ children, onNavigate }: LayoutProps) {
     cover: "/placeholder.svg?height=60&width=60",
     duration: 203,
     isPlaying: false,
-  })
+  });
 
   const togglePlay = () => {
     setCurrentTrack((prev) => ({
       ...prev,
       isPlaying: !prev.isPlaying,
-    }))
-  }
+    }));
+  };
 
   const toggleVideoMode = () => {
-    setIsVideoMode((prev) => !prev)
-  }
+    setIsVideoMode((prev) => !prev);
+  };
 
   return (
     <ThemeProvider>
-      <div className="flex h-screen flex-col bg-background text-foreground">
-        <Header onNavigate={onNavigate} />
+      <div
+        className="flex h-screen flex-col bg-background text-foreground"
+        style={{
+          paddingTop: "env(safe-area-inset-top)",
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
+      >
+        <Header />
         <div className="flex flex-1 overflow-hidden">
-          <Sidebar onNavigate={onNavigate} />
+          <Sidebar />
           <main className="flex-1 overflow-y-auto pb-24">{children}</main>
         </div>
         <Player
@@ -53,5 +59,5 @@ export function Layout({ children, onNavigate }: LayoutProps) {
         />
       </div>
     </ThemeProvider>
-  )
+  );
 }

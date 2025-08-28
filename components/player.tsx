@@ -148,8 +148,9 @@ export function Player({
         isVideoMode && !isFullscreen ? "h-64" : "h-20",
         isVideoMode && isFullscreen ? "h-screen" : ""
       )}
+      style={{ paddingBottom: 100 }}
     >
-      <div className="flex h-full flex-col">
+      <div className="flex h-full flex-col" style={{ paddingTop: 10 }}>
         {isVideoMode && (
           <div className="relative flex-1 bg-black">
             <div className="flex h-full items-center justify-center">

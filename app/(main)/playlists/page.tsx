@@ -93,8 +93,8 @@ export default function PlaylistsPage() {
   };
 
   return (
-    <div className="h-full px-4 py-6 lg:px-8">
-      <div className="flex items-center justify-between">
+    <div className="min-h-screen px-4 py-6 lg:px-8">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">
             Your Playlists
@@ -103,21 +103,23 @@ export default function PlaylistsPage() {
             Create and manage your music collections
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative w-full sm:w-auto">
             <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
               placeholder="Search playlists..."
-              className="w-[200px] pl-8 md:w-[250px] lg:w-[300px]"
+              className="w-full pl-8 sm:w-[200px] md:w-[250px] lg:w-[300px]"
             />
           </div>
+
           <Dialog
             open={isCreatePlaylistOpen}
             onOpenChange={setIsCreatePlaylistOpen}
           >
             <DialogTrigger asChild>
-              <Button>
+              <Button className="w-full sm:w-auto">
                 <PlusIcon className="mr-2 h-4 w-4" />
                 Create Playlist
               </Button>

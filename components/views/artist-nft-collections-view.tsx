@@ -100,30 +100,43 @@ export function ArtistNFTCollectionsView({ id }: { id: string }) {
     }
 
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div
+        className="
+        grid 
+        grid-cols-1 
+        gap-y-6 gap-x-4 
+        sm:grid-cols-2 
+        md:grid-cols-3 
+        lg:grid-cols-4 
+        xl:grid-cols-6
+      "
+      >
         {collections.map((collection) => (
           <Link
             key={collection.id}
             href={`/nft-marketplace/collection/${collection.id}`}
+            className="block"
           >
-            <Card className="overflow-hidden cursor-pointer flex flex-col h-full">
+            <Card className="overflow-hidden cursor-pointer flex flex-col h-full hover:shadow-lg transition-shadow duration-300">
               <div className="relative">
                 <img
                   src={collection.imageUrl || "/placeholder.svg"}
                   alt={collection.name}
-                  className="h-40 w-full object-cover"
+                  className="h-48 w-full object-cover"
                 />
               </div>
-              <CardContent className="p-4 flex flex-col justify-between flex-grow">
-                <h3 className="font-semibold mb-1">{collection.name}</h3>
+              <CardContent className="p-5 flex flex-col justify-between flex-grow">
+                <h3 className="font-semibold text-lg mb-2">
+                  {collection.name}
+                </h3>
 
-                <div className="mb-3 text-sm text-muted-foreground">
+                <div className="mb-4 text-sm text-muted-foreground space-y-1">
                   {collection.album && (
                     <p>
                       Album:{" "}
                       <Link
                         href={`/albums/${collection.album.id}`}
-                        className="text-primary"
+                        className="text-primary underline"
                       >
                         {collection.album.title}
                       </Link>
@@ -134,7 +147,7 @@ export function ArtistNFTCollectionsView({ id }: { id: string }) {
                       Track:{" "}
                       <Link
                         href={`/tracks/${collection.track.id}`}
-                        className="text-primary"
+                        className="text-primary underline"
                       >
                         {collection.track.title}
                       </Link>
@@ -145,7 +158,7 @@ export function ArtistNFTCollectionsView({ id }: { id: string }) {
                       Artist:{" "}
                       <Link
                         href={`/artists/${collection.artist.id}`}
-                        className="text-primary"
+                        className="text-primary underline"
                       >
                         {collection.artist.name}
                       </Link>
@@ -153,10 +166,10 @@ export function ArtistNFTCollectionsView({ id }: { id: string }) {
                   )}
                 </div>
 
-                <div className="mb-3 grid grid-cols-2 gap-2 text-sm">
+                <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground">Price</p>
-                    <p className="font-medium">
+                    <p className="font-medium text-base">
                       {collection.price} {collection.currency.code}
                     </p>
                   </div>
@@ -164,7 +177,7 @@ export function ArtistNFTCollectionsView({ id }: { id: string }) {
                     <p className="text-muted-foreground">Supply</p>
                     <Badge
                       variant="secondary"
-                      className="flex items-center gap-1 inline-block"
+                      className="flex items-center gap-1 inline-block text-sm"
                     >
                       {collection.minted}/{collection.supply}
                     </Badge>

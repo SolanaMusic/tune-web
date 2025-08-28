@@ -8,7 +8,7 @@ export function AuthPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <div className="flex h-16 items-center border-b px-6">
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary">
             <Image src="/favicon.png" alt="favicon" width={40} height={40} />
           </div>

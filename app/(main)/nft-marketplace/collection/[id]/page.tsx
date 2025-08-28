@@ -8,3 +8,7 @@ export default async function NFTDetailPage({
   const { id } = await params;
   return <CollectionDetailView id={id} />;
 }
+
+export async function generateStaticParams() {
+  return [{ id: "1" }, { id: "2" }, { id: "3" }];
+}
