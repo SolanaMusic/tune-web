@@ -1,4 +1,4 @@
-import React, { FC, useMemo, useState, useEffect, useRef } from "react";
+import React, { FC, useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
@@ -19,6 +19,7 @@ import {
 } from "@solana/wallet-adapter-react-ui";
 import { clusterApiUrl } from "@solana/web3.js";
 import axios from "axios";
+import { useUser } from "@/context/UserContext";
 
 export const CryptoWalletLogin: FC = () => {
   const network = WalletAdapterNetwork.Devnet;
@@ -80,6 +81,7 @@ export const CryptoWalletLogin: FC = () => {
 
 const WalletDisplay: FC = () => {
   const router = useRouter();
+  const { user, setUser } = useUser();
   const { connected, publicKey, wallet } = useWallet();
   const [message] = useState("Sign this message to authenticate");
 
@@ -99,15 +101,19 @@ const WalletDisplay: FC = () => {
 
         const response = await axios.post(
           `${process.env.NEXT_PUBLIC_API_BASE_URL}auth/solana-wallet-auth`,
-          body,
-          {
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
+          body
         );
 
-        if (response.status === 200 && response.data?.jwt) {
+        const token = response.data?.jwt;
+        if (token) {
+          const user = {
+            name: response.data.user.userName,
+            role: response.data.role,
+            avatar: `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${response.data.user.profile.avatarUrl}`,
+            token,
+          };
+
+          setUser(user);
           router.push("/");
         } else {
           console.error("Auth error:", response.statusText);
@@ -119,7 +125,7 @@ const WalletDisplay: FC = () => {
   };
 
   useEffect(() => {
-    if (connected) {
+    if (connected && !user) {
       signMessageIfConnected();
     }
   }, [connected, publicKey]);

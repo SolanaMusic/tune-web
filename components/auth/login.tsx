@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, ChangeEvent, FormEvent } from "react";
+import { useState, ChangeEvent, FormEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import Image from "next/image";
@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { CryptoWalletLogin } from "./crypto-wallet-login";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useUser } from "@/context/UserContext";
 
 export function Login() {
   const router = useRouter();
@@ -20,6 +21,7 @@ export function Login() {
   const [errors, setErrors] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
+  const { setUser } = useUser();
 
   const validateForm = () => {
     const newErrors = { email: "", password: "" };
@@ -63,7 +65,14 @@ export function Login() {
 
       const token = response.data?.jwt;
       if (token) {
-        localStorage.setItem("token", token);
+        const user = {
+          name: response.data.user.userName,
+          role: response.data.role,
+          avatar: `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${response.data.user.profile.avatarUrl}`,
+          token,
+        };
+
+        setUser(user);
         router.push("/");
       } else {
         setLoginError("Invalid login response.");
@@ -77,9 +86,9 @@ export function Login() {
   };
 
   const handleExternalLogin = (provider: string) => {
-    const currentUrl = window.location.origin;
-    const redirectUrl = `${currentUrl}/`;
-    const externalLoginUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL}auth/external-login?provider=${provider}&redirectUrl=${redirectUrl}`;
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+    const redirectUrl = `${apiBase}auth/external-response`;
+    const externalLoginUrl = `${apiBase}auth/external-login?provider=${provider}&redirectUrl=${redirectUrl}`;
 
     window.location.href = externalLoginUrl;
   };

@@ -3,6 +3,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
+import { UserProvider } from "@/context/UserContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,7 +19,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="icon" href="/favicon.png" />
       </head>
       <body className={inter.className}>
-        <ThemeProvider>{children}</ThemeProvider>
+        <UserProvider>
+          <ThemeProvider>{children}</ThemeProvider>
+        </UserProvider>
       </body>
     </html>
   );
