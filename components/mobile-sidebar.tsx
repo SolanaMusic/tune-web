@@ -19,10 +19,12 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState } from "react";
 import { CreateContentModal } from "./modals/create-content-modal";
+import { useUser } from "@/context/UserContext";
 
 export function MobileSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { user } = useUser();
   const [isCreateContentOpen, setIsCreateContentOpen] = useState(false);
 
   const isActive = (path: string) => {
@@ -106,29 +108,31 @@ export function MobileSidebar() {
           />
         </div>
 
-        <div className="px-4 py-4">
-          <SectionLabel
-            icon={<Hammer className="h-4 w-4" />}
-            label="Artist Tools"
-          />
-          <div className="mt-2 space-y-1">
-            <NavButton
-              href="/artist-nft-collections/1"
-              icon={<LayoutGrid />}
-              label="NFT Collections"
-              isActive={(href) => pathname.startsWith(href)}
+        {user && user?.role !== "User" && (
+          <div className="px-4 py-4">
+            <SectionLabel
+              icon={<Hammer className="h-4 w-4" />}
+              label="Artist Tools"
             />
-            <CreateContentModal
-              open={isCreateContentOpen}
-              onOpenChange={setIsCreateContentOpen}
-            >
-              <Button variant="ghost" className="w-full justify-start">
-                <FilePlus className="mr-2 h-4 w-4" />
-                Create Content
-              </Button>
-            </CreateContentModal>
+            <div className="mt-2 space-y-1">
+              <NavButton
+                href="/artist-nft-collections/1"
+                icon={<LayoutGrid />}
+                label="NFT Collections"
+                isActive={(href) => pathname.startsWith(href)}
+              />
+              <CreateContentModal
+                open={isCreateContentOpen}
+                onOpenChange={setIsCreateContentOpen}
+              >
+                <Button variant="ghost" className="w-full justify-start">
+                  <FilePlus className="mr-2 h-4 w-4" />
+                  Create Content
+                </Button>
+              </CreateContentModal>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="px-4 py-2">
           <SectionLabel

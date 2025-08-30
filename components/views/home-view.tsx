@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Play, Pause, Loader2 } from "lucide-react";
 import { useUser } from "@/context/UserContext";
 
-export function HomeView(id: number) {
+export function HomeView() {
   const router = useRouter();
   const { user } = useUser();
   const [playingItem, setPlayingItem] = useState<string | null>(null);
@@ -18,17 +18,13 @@ export function HomeView(id: number) {
   const [recentlyPlayed, setRecentlyPlayed] = useState<[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const handlePlayItem = (type: string, id: string) => {
+  const handlePlayItem = (type: string, id: number) => {
     const itemKey = `${type}-${id}`;
     setPlayingItem(playingItem === itemKey ? null : itemKey);
   };
 
-  const navigateToArtist = (id: string) => {
-    router.push(`/artists/${id}`);
-  };
-
-  const navigateToPlaylist = (id: string) => {
-    router.push(`/playlists/${id}`);
+  const navigateTo = (path: string, id: number) => {
+    router.push(`/${path}/${id}`);
   };
 
   useEffect(() => {
@@ -78,7 +74,7 @@ export function HomeView(id: number) {
             <div
               key={artist.id}
               className="group cursor-pointer"
-              onClick={() => navigateToArtist(artist.id)}
+              onClick={() => navigateTo("artists", artist.id)}
             >
               <div className="overflow-hidden rounded-full aspect-square">
                 <img
@@ -105,7 +101,7 @@ export function HomeView(id: number) {
             <Card
               key={album.id}
               className="group cursor-pointer transition-all hover:bg-accent"
-              onClick={() => navigateToPlaylist(album.id)}
+              onClick={() => navigateTo("albums", album.id)}
             >
               <CardContent className="p-3">
                 <div className="relative overflow-hidden rounded-md aspect-square">
@@ -154,7 +150,7 @@ export function HomeView(id: number) {
             <Card
               key={track.id}
               className="group cursor-pointer transition-all hover:bg-accent"
-              onClick={() => router.push(`/albums/1`)}
+              onClick={() => navigateTo("tracks", track.id)}
             >
               <CardContent className="p-3">
                 <div className="relative overflow-hidden rounded-md">
@@ -203,7 +199,7 @@ export function HomeView(id: number) {
             <Card
               key={track.id}
               className="group cursor-pointer transition-all hover:bg-accent"
-              onClick={() => router.push(`/albums/1`)}
+              onClick={() => navigateTo("tracks", track.id)}
             >
               <CardContent className="p-3">
                 <div className="relative overflow-hidden rounded-md">

@@ -19,11 +19,12 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { CreateContentModal } from "./modals/create-content-modal";
+import { useUser } from "@/context/UserContext";
 
 export function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const [isCreateContentOpen, setIsCreateContentOpen] = useState(false);
+  const { user } = useUser();
 
   const playlists = [
     { id: "1", name: "Discover Weekly" },
@@ -104,38 +105,40 @@ export function Sidebar() {
           </div>
         </div>
 
-        <div className="px-4 py-2">
-          <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground">
-            <Hammer className="h-4 w-4" />
-            <span>Artist Tools</span>
-          </div>
-          <div className="mt-2 space-y-1">
-            <Button
-              variant={
-                pathname.startsWith("/artist-nft-collections")
-                  ? "default"
-                  : "ghost"
-              }
-              className="w-full justify-start"
-              asChild
-            >
-              <Link href="/artist-nft-collections/1">
-                <LayoutGrid className="mr-2 h-4 w-4" />
-                NFT Collections
-              </Link>
-            </Button>
-
-            <CreateContentModal
-              open={isCreateContentOpen}
-              onOpenChange={setIsCreateContentOpen}
-            >
-              <Button variant="ghost" className="w-full justify-start">
-                <FilePlus className="mr-2 h-4 w-4" />
-                Create Content
+        {user && user?.role !== "User" && (
+          <div className="px-4 py-2">
+            <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground">
+              <Hammer className="h-4 w-4" />
+              <span>Artist Tools</span>
+            </div>
+            <div className="mt-2 space-y-1">
+              <Button
+                variant={
+                  pathname.startsWith("/artist-nft-collections")
+                    ? "default"
+                    : "ghost"
+                }
+                className="w-full justify-start"
+                asChild
+              >
+                <Link href="/artist-nft-collections/1">
+                  <LayoutGrid className="mr-2 h-4 w-4" />
+                  NFT Collections
+                </Link>
               </Button>
-            </CreateContentModal>
+
+              <CreateContentModal
+                open={isCreateContentOpen}
+                onOpenChange={setIsCreateContentOpen}
+              >
+                <Button variant="ghost" className="w-full justify-start">
+                  <FilePlus className="mr-2 h-4 w-4" />
+                  Create Content
+                </Button>
+              </CreateContentModal>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="px-4 py-2">
           <div className="flex items-center justify-between">
