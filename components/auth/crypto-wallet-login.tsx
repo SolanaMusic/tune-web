@@ -107,6 +107,7 @@ const WalletDisplay: FC = () => {
         const token = response.data?.jwt;
         if (token) {
           const user = {
+            id: response.data.user.id,
             name: response.data.user.userName,
             role: response.data.role,
             avatar: `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${response.data.user.profile.avatarUrl}`,

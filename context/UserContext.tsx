@@ -1,8 +1,16 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
 
 type User = {
+  id: number;
   name: string;
   role: string;
   avatar: string;
@@ -13,18 +21,21 @@ type UserContextType = {
   user: User | null;
   setUser: (u: User | null) => void;
   logout: () => void;
+  loading: boolean;
 };
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-export const UserProvider = ({ children }: { children: React.ReactNode }) => {
+export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const saved = localStorage.getItem("user");
     if (saved) {
       setUser(JSON.parse(saved));
     }
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -41,8 +52,15 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.removeItem("token");
   };
 
+  if (loading)
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-20 w-20 animate-spin text-primary" />
+      </div>
+    );
+
   return (
-    <UserContext.Provider value={{ user, setUser, logout }}>
+    <UserContext.Provider value={{ user, setUser, logout, loading }}>
       {children}
     </UserContext.Provider>
   );

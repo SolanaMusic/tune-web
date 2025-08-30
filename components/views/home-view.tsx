@@ -5,15 +5,18 @@ import { useRouter } from "next/navigation";
 import axios from "axios";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Play, Pause } from "lucide-react";
+import { Play, Pause, Loader2 } from "lucide-react";
+import { useUser } from "@/context/UserContext";
 
-export function HomeView() {
+export function HomeView(id: number) {
   const router = useRouter();
+  const { user } = useUser();
   const [playingItem, setPlayingItem] = useState<string | null>(null);
   const [artists, setArtists] = useState<[]>([]);
   const [albums, setAlbums] = useState<[]>([]);
   const [tracks, setTracks] = useState<[]>([]);
   const [recentlyPlayed, setRecentlyPlayed] = useState<[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const handlePlayItem = (type: string, id: string) => {
     const itemKey = `${type}-${id}`;
@@ -36,7 +39,9 @@ export function HomeView() {
           axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}albums`),
           axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}tracks`),
           axios.get(
-            `${process.env.NEXT_PUBLIC_API_BASE_URL}tracks/recently-played/2`
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}tracks/recently-played/${
+              user?.id || 0
+            }`
           ),
         ]);
 
@@ -46,11 +51,23 @@ export function HomeView() {
         setRecentlyPlayed(recRes.data);
       } catch (error) {
         console.error("Failed to fetch data", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchAll();
   }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="translate-y-[-70px]">
+          <Loader2 className="h-20 w-20 animate-spin text-primary" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 p-6">

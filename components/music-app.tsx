@@ -28,7 +28,7 @@ export function MusicApp() {
   const [currentPlaylist, setCurrentPlaylist] = useState<string | null>(null);
   const [currentArtistId, setCurrentArtistId] = useState<string | null>(null);
   const [currentAlbumId, setCurrentAlbumId] = useState<string | null>(null);
-  const { user, setUser } = useUser();
+  const { setUser } = useUser();
   const router = useRouter();
 
   useEffect(() => {
@@ -55,6 +55,7 @@ export function MusicApp() {
     if (!token) return;
 
     const user = {
+      id: Number(url.searchParams.get("id")),
       name: url.searchParams.get("username")!,
       role: url.searchParams.get("role")!,
       avatar: url.searchParams.get("avatar")!,
