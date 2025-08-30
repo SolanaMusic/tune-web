@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Play,
@@ -9,6 +9,9 @@ import {
   Heart,
   Share2,
   CheckCircle,
+  Loader2,
+  Minus,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,301 +21,184 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { useUser } from "@/context/UserContext";
+import axios from "axios";
+import { ScrollArea } from "@radix-ui/react-scroll-area";
 
-interface ArtistViewProps {
-  id: string | null;
-}
-
-export function ArtistView({ id }: ArtistViewProps) {
+export function ArtistView({ id }: { id: string }) {
   const router = useRouter();
-  const { toast } = useToast();
+  const { user } = useUser();
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [subscribers, setSubscribers] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
   const [showMoreTracks, setShowMoreTracks] = useState(false);
+  const [artist, setArtist] = useState();
+  const [artists, setArtists] = useState([]);
+  const [nfts, setNfts] = useState([]);
+  const [playlists, setPlaylists] = useState([]);
+  const [bgGradient, setBgGradient] = useState(
+    "linear-gradient(to bottom, #000, #000)"
+  );
 
-  const artist = {
-    id: id || "1",
-    name: "The Weeknd",
-    verified: true,
-    subscribers: "38.5M",
-    monthlyListeners: "84.2M",
-    coverImage: "/placeholder.svg?height=400&width=1200",
-    profileImage: "/placeholder.svg?height=200&width=200",
-    bio: "Abel Makkonen Tesfaye, known professionally as the Weeknd, is a Canadian singer, songwriter, and record producer. He is known for his sonic versatility and dark lyricism, with his music exploring escapism, romance, and melancholia, and often inspired by personal experiences.",
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const params = user ? { userId: user.id } : undefined;
+
+        const artistResponse = await axios.get(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}artists/${id}`,
+          { params }
+        );
+
+        setArtist(artistResponse.data);
+        setIsSubscribed(artistResponse.data.isUserSubscribed);
+        setSubscribers(artistResponse.data.subscribersCount);
+
+        if (artistResponse.data.imageUrl) {
+          import("fast-average-color").then((module) => {
+            const fac = new module.FastAverageColor();
+            fac
+              .getColorAsync(
+                `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${artistResponse.data.imageUrl}`
+              )
+              .then((color) => {
+                setBgGradient(`
+                    linear-gradient(
+                        180deg,
+                        ${shadeColor(color.hex, +20)} 0%, 
+                        ${color.hex} 50%, 
+                        ${shadeColor(color.hex, -70)} 100%
+                    )
+                `);
+              })
+              .catch(() => {
+                setBgGradient("linear-gradient(to bottom, #000, #000)");
+              });
+          });
+        }
+
+        const artistsResponse = await axios.get(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}artists`,
+          { params }
+        );
+
+        setArtists(
+          artistsResponse.data.filter((x) => x.id !== artistResponse.data.id)
+        );
+
+        const nftsResponse = await axios.get(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/artist-collections/${id}`
+        );
+
+        setNfts(nftsResponse.data);
+
+        if (user) {
+          const playlistsResponse = await axios.get(
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}playlists/get-user-playlists/${user.id}`
+          );
+          setPlaylists(playlistsResponse.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch data", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [id, user]);
+
+  function shadeColor(color: string, percent: number) {
+    const f = parseInt(color.slice(1), 16),
+      t = percent < 0 ? 0 : 255,
+      p = Math.abs(percent) / 100,
+      R = f >> 16,
+      G = (f >> 8) & 0x00ff,
+      B = f & 0x0000ff;
+    return (
+      "#" +
+      (
+        0x1000000 +
+        (Math.round((t - R) * p) + R) * 0x10000 +
+        (Math.round((t - G) * p) + G) * 0x100 +
+        (Math.round((t - B) * p) + B)
+      )
+        .toString(16)
+        .slice(1)
+    );
+  }
+
+  const addOrRemoveFromPlaylist = async (
+    playlistId: number,
+    trackId: number,
+    track: any
+  ) => {
+    const playlist = playlists.find((p) => p.id === playlistId);
+    if (!playlist) return;
+    const isInPlaylist = playlist.tracks.some((t) => t.id === trackId);
+
+    try {
+      if (isInPlaylist) {
+        await axios.delete(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}playlists/remove-from-playlist`,
+          { params: { playlistId, trackId } }
+        );
+        setPlaylists((prev) =>
+          prev.map((p) =>
+            p.id === playlistId
+              ? { ...p, tracks: p.tracks.filter((t) => t.id !== trackId) }
+              : p
+          )
+        );
+      } else {
+        await axios.post(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}playlists/add-to-playlist`,
+          { playlistId, trackId }
+        );
+        setPlaylists((prev) =>
+          prev.map((p) =>
+            p.id === playlistId ? { ...p, tracks: [...p.tracks, track] } : p
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Failed to update playlist", error);
+    }
   };
 
-  const topSongs = [
-    {
-      id: "s1",
-      title: "Blinding Lights",
-      album: "After Hours",
-      albumId: "a1",
-      plays: "3.2B",
-      duration: 201,
-      listenings: "2.4M",
-      isExplicit: false,
-      cover: "/placeholder.svg?height=60&width=60",
-    },
-    {
-      id: "s2",
-      title: "Starboy",
-      album: "Starboy",
-      albumId: "a2",
-      plays: "2.8B",
-      duration: 230,
-      listenings: "1.8M",
-      isExplicit: true,
-      cover: "/placeholder.svg?height=60&width=60",
-    },
-    {
-      id: "s3",
-      title: "Save Your Tears",
-      album: "After Hours",
-      albumId: "a1",
-      plays: "2.1B",
-      duration: 215,
-      listenings: "1.5M",
-      isExplicit: false,
-      cover: "/placeholder.svg?height=60&width=60",
-    },
-    {
-      id: "s4",
-      title: "The Hills",
-      album: "Beauty Behind the Madness",
-      albumId: "a3",
-      plays: "1.9B",
-      duration: 242,
-      listenings: "1.3M",
-      isExplicit: true,
-      cover: "/placeholder.svg?height=60&width=60",
-    },
-    {
-      id: "s5",
-      title: "Die For You",
-      album: "Starboy",
-      albumId: "a2",
-      plays: "1.7B",
-      duration: 260,
-      listenings: "956K",
-      isExplicit: false,
-      cover: "/placeholder.svg?height=60&width=60",
-    },
-    {
-      id: "s6",
-      title: "Call Out My Name",
-      album: "My Dear Melancholy",
-      albumId: "a5",
-      plays: "1.5B",
-      duration: 228,
-      listenings: "874K",
-      isExplicit: true,
-      cover: "/placeholder.svg?height=60&width=60",
-    },
-    {
-      id: "s7",
-      title: "I Feel It Coming",
-      album: "Starboy",
-      albumId: "a2",
-      plays: "1.4B",
-      duration: 269,
-      listenings: "782K",
-      isExplicit: false,
-      cover: "/placeholder.svg?height=60&width=60",
-    },
-    {
-      id: "s8",
-      title: "Often",
-      album: "Beauty Behind the Madness",
-      albumId: "a3",
-      plays: "1.3B",
-      duration: 250,
-      listenings: "645K",
-      isExplicit: true,
-      cover: "/placeholder.svg?height=60&width=60",
-    },
-    {
-      id: "s9",
-      title: "Earned It",
-      album: "Beauty Behind the Madness",
-      albumId: "a3",
-      plays: "1.2B",
-      duration: 277,
-      listenings: "598K",
-      isExplicit: false,
-      cover: "/placeholder.svg?height=60&width=60",
-    },
-    {
-      id: "s10",
-      title: "Heartless",
-      album: "After Hours",
-      albumId: "a1",
-      plays: "1.1B",
-      duration: 198,
-      listenings: "542K",
-      isExplicit: true,
-      cover: "/placeholder.svg?height=60&width=60",
-    },
-  ];
+  const handleSubscribe = async () => {
+    if (!user || !artist) return;
 
-  const albums = [
-    {
-      id: "a1",
-      title: "After Hours",
-      year: "2020",
-      tracks: 14,
-      cover: "/placeholder.svg?height=200&width=200",
-    },
-    {
-      id: "a2",
-      title: "Starboy",
-      year: "2016",
-      tracks: 18,
-      cover: "/placeholder.svg?height=200&width=200",
-    },
-    {
-      id: "a3",
-      title: "Beauty Behind the Madness",
-      year: "2015",
-      tracks: 14,
-      cover: "/placeholder.svg?height=200&width=200",
-    },
-    {
-      id: "a4",
-      title: "Dawn FM",
-      year: "2022",
-      tracks: 16,
-      cover: "/placeholder.svg?height=200&width=200",
-    },
-    {
-      id: "a5",
-      title: "My Dear Melancholy",
-      year: "2018",
-      tracks: 6,
-      cover: "/placeholder.svg?height=200&width=200",
-    },
-    {
-      id: "a6",
-      title: "House of Balloons",
-      year: "2011",
-      tracks: 9,
-      cover: "/placeholder.svg?height=200&width=200",
-    },
-  ];
+    const url = !isSubscribed
+      ? `${process.env.NEXT_PUBLIC_API_BASE_URL}artists/subscribe-to-artist`
+      : `${process.env.NEXT_PUBLIC_API_BASE_URL}artists/unsubscribe-from-artist`;
 
-  const similarArtists = [
-    {
-      id: "sa1",
-      name: "Drake",
-      followers: "65.3M",
-      image: "/placeholder.svg?height=120&width=120",
-    },
-    {
-      id: "sa2",
-      name: "Post Malone",
-      followers: "42.1M",
-      image: "/placeholder.svg?height=120&width=120",
-    },
-    {
-      id: "sa3",
-      name: "Bruno Mars",
-      followers: "39.8M",
-      image: "/placeholder.svg?height=120&width=120",
-    },
-    {
-      id: "sa4",
-      name: "Kendrick Lamar",
-      followers: "37.5M",
-      image: "/placeholder.svg?height=120&width=120",
-    },
-    {
-      id: "sa5",
-      name: "Dua Lipa",
-      followers: "35.2M",
-      image: "/placeholder.svg?height=120&width=120",
-    },
-  ];
+    const method = !isSubscribed ? "post" : "delete";
+    const config =
+      method === "post"
+        ? { id, userId: user.id }
+        : { params: { id, userId: user.id } };
 
-  const artistNFTs = [
-    {
-      id: "nft1",
-      title: "The Weeknd VIP Experience",
-      description: "Exclusive VIP access to The Weeknd's next tour",
-      price: 5.0,
-      currency: "SOL",
-      totalSupply: 100,
-      minted: 78,
-      image: "/placeholder.svg?height=200&width=200",
-    },
-    {
-      id: "nft2",
-      title: "After Hours Digital Collectible",
-      description: "Limited edition digital artwork from After Hours",
-      price: 2.5,
-      currency: "SOL",
-      totalSupply: 500,
-      minted: 342,
-      image: "/placeholder.svg?height=200&width=200",
-    },
-    {
-      id: "nft3",
-      title: "Starboy Exclusive Track",
-      description: "Unreleased track from Starboy sessions",
-      price: 1.8,
-      currency: "SOL",
-      totalSupply: 1000,
-      minted: 876,
-      image: "/placeholder.svg?height=200&width=200",
-    },
-    {
-      id: "nft4",
-      title: "Dawn FM Early Access",
-      description: "Early access to upcoming Dawn FM content",
-      price: 3.2,
-      currency: "SOL",
-      totalSupply: 250,
-      minted: 187,
-      image: "/placeholder.svg?height=200&width=200",
-    },
-  ];
-
-  const userPlaylists = [
-    { id: "p1", name: "My Summer Mix", tracks: 24 },
-    { id: "p2", name: "Indie Discoveries", tracks: 42 },
-    { id: "p3", name: "Coding Focus", tracks: 18 },
-    { id: "p4", name: "Throwback Jams", tracks: 36 },
-    { id: "p5", name: "Chill Evening", tracks: 15 },
-    { id: "p6", name: "Workout Motivation", tracks: 28 },
-  ];
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
+    try {
+      await axios[method](url, config);
+      setIsSubscribed(!isSubscribed);
+      setSubscribers((prev) => prev + (!isSubscribed ? 1 : -1));
+    } catch (error) {
+      console.error("Failed to update subscription", error);
+    }
   };
 
-  const handleSubscribe = () => {
-    setIsSubscribed(!isSubscribed);
-    toast({
-      title: isSubscribed ? "Unsubscribed" : "Subscribed",
-      description: `You have ${
-        isSubscribed ? "unsubscribed from" : "subscribed to"
-      } ${artist.name}.`,
-      duration: 3000,
-    });
-  };
+  const getAlbumByTrackId = (trackId: number) => {
+    if (!artist?.albums?.length) return null;
 
-  const handleLike = () => {
-    setIsLiked(!isLiked);
-    toast({
-      title: isLiked ? "Removed from Favorites" : "Added to Favorites",
-      description: `${artist.name} has been ${
-        isLiked ? "removed from" : "added to"
-      } your favorites.`,
-      duration: 3000,
-    });
+    return (
+      artist.albums.find((album) =>
+        album.tracks.some((t) => t.id === trackId)
+      ) || null
+    );
   };
 
   const handlePlaySong = (songId: string) => {
@@ -320,73 +206,32 @@ export function ArtistView({ id }: ArtistViewProps) {
     console.log(`Playing song: ${songId}`);
   };
 
-  const handleShare = () => {
-    const shareUrl = `${window.location.origin}/artists/${artist.id}`;
-
-    navigator.clipboard
-      .writeText(shareUrl)
-      .then(() => {
-        toast({
-          title: "Link Copied",
-          description: `Link to ${artist.name}'s profile has been copied to clipboard.`,
-          duration: 3000,
-        });
-      })
-      .catch((err) => {
-        console.error("Failed to copy: ", err);
-        toast({
-          title: "Sharing Failed",
-          description: "Could not copy link to clipboard.",
-          variant: "destructive",
-          duration: 3000,
-        });
-      });
-  };
-
-  const handleLikeSong = (songId: string, songTitle: string) => {
-    toast({
-      title: "Added to Liked Songs",
-      description: `"${songTitle}" has been added to your Liked Songs.`,
-      duration: 3000,
-    });
-  };
-
-  const handleAddToPlaylist = (
-    songId: string,
-    songTitle: string,
-    playlistId: string,
-    playlistName: string
-  ) => {
-    toast({
-      title: "Added to Playlist",
-      description: `"${songTitle}" has been added to ${playlistName}.`,
-      duration: 3000,
-    });
-  };
-
-  const handleMintNFT = (nftId: string, nftTitle: string) => {
-    toast({
-      title: "Mint Transaction Initiated",
-      description: `Starting the process to mint "${nftTitle}" NFT. Please confirm in your wallet.`,
-      duration: 5000,
-    });
-  };
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="translate-y-[-70px]">
+          <Loader2 className="h-20 w-20 animate-spin text-primary" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col">
       <div
-        className="relative flex flex-col bg-gradient-to-b from-primary/30 to-background pb-6"
+        className="relative flex flex-col bg-gradient-to-b from-primary/30 to-background pb-10"
         style={{
-          backgroundImage: `linear-gradient(to bottom, rgba(0,0,0,0.7), var(--background)), url(${artist.coverImage})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
+          background: bgGradient,
         }}
       >
         <div className="container mx-auto px-6 pt-8 md:pt-16">
           <div className="flex flex-col items-center gap-6 md:flex-row md:items-end">
             <div className="h-40 w-40 flex-shrink-0 overflow-hidden rounded-full border-4 border-background shadow-lg md:h-48 md:w-48">
               <img
-                src={artist.profileImage || "/placeholder.svg"}
+                src={
+                  `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${artist.imageUrl}` ||
+                  "/placeholder.svg"
+                }
                 alt={artist.name}
                 className="h-full w-full object-cover"
               />
@@ -396,14 +241,17 @@ export function ArtistView({ id }: ArtistViewProps) {
                 <h1 className="text-3xl font-bold md:text-5xl">
                   {artist.name}
                 </h1>
-                {artist.verified && (
-                  <CheckCircle className="h-5 w-5 text-primary md:h-6 md:w-6" />
+                {artist.user.profile && (
+                  <CheckCircle className="h-5 w-5 md:h-6 md:w-6" />
                 )}
               </div>
               <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-                <span>{artist.subscribers} subscribers</span>
+                <span>{subscribers} subscribers</span>
                 <span>•</span>
-                <span>{artist.monthlyListeners} monthly listeners</span>
+                <span>
+                  {artist.tracks.reduce((acc, x) => acc + x.playsCount, 0)}{" "}
+                  listens
+                </span>
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <Button
@@ -425,7 +273,7 @@ export function ArtistView({ id }: ArtistViewProps) {
                 <Button
                   variant={isSubscribed ? "default" : "outline"}
                   className="rounded-full"
-                  onClick={handleSubscribe}
+                  onClick={() => handleSubscribe()}
                 >
                   {isSubscribed ? "Subscribed" : "Subscribe"}
                 </Button>
@@ -433,7 +281,7 @@ export function ArtistView({ id }: ArtistViewProps) {
                   variant="ghost"
                   size="icon"
                   className="rounded-full"
-                  onClick={handleLike}
+                  onClick={() => setIsLiked(!isLiked)}
                 >
                   <Heart
                     className={`h-5 w-5 ${
@@ -441,12 +289,7 @@ export function ArtistView({ id }: ArtistViewProps) {
                     }`}
                   />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-full"
-                  onClick={handleShare}
-                >
+                <Button variant="ghost" size="icon" className="rounded-full">
                   <Share2 className="h-5 w-5" />
                 </Button>
                 <Popover>
@@ -485,225 +328,204 @@ export function ArtistView({ id }: ArtistViewProps) {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="discography">Discography</TabsTrigger>
             <TabsTrigger value="nfts">NFTs</TabsTrigger>
-            <TabsTrigger value="about">About</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-12">
-            <section>
-              <h2 className="mb-6 text-2xl font-bold">Popular</h2>
-              <div className="grid gap-3">
-                {topSongs.slice(0, showMoreTracks ? 10 : 5).map((song) => (
-                  <div
-                    key={song.id}
-                    className={`group flex items-center gap-4 rounded-md p-2 transition-colors hover:bg-accent ${
-                      playingSongId === song.id ? "bg-accent" : ""
-                    }`}
-                  >
-                    <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-md">
-                      <img
-                        src={song.cover || "/placeholder.svg"}
-                        alt={song.title}
-                        className="h-full w-full object-cover"
-                      />
-                      <div
-                        className={`absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity ${
-                          playingSongId === song.id
-                            ? "opacity-100"
-                            : "opacity-0 group-hover:opacity-100"
-                        }`}
-                        onClick={() => handlePlaySong(song.id)}
-                      >
-                        {playingSongId === song.id ? (
-                          <div className="h-3 w-3 animate-pulse rounded-full bg-white"></div>
-                        ) : (
-                          <Play className="h-6 w-6 text-white" />
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1 font-medium truncate">
-                        {song.title}
-                        {song.isExplicit && (
-                          <span className="ml-1 rounded-sm bg-muted px-1 text-xs">
-                            E
-                          </span>
-                        )}
-                      </div>
-                      <div
-                        className="text-sm text-muted-foreground truncate cursor-pointer hover:underline"
-                        onClick={() => router.push(`/albums/${song.albumId}`)}
-                      >
-                        {song.album}
-                      </div>
-                    </div>
-                    <div className="text-sm text-muted-foreground hidden md:block">
-                      {song.listenings}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {formatTime(song.duration)}
-                    </div>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="opacity-0 group-hover:opacity-100"
+            {artist.tracks.length > 0 && (
+              <section>
+                <h2 className="mb-6 text-2xl font-bold">Popular</h2>
+                <div className="grid gap-3">
+                  {artist.tracks
+                    .slice(0, showMoreTracks ? 10 : 5)
+                    .map((track) => {
+                      const album = getAlbumByTrackId(track.id);
+                      return (
+                        <div
+                          key={track.id}
+                          className={`group flex items-center gap-4 rounded-md p-2 transition-colors hover:bg-accent ${
+                            playingSongId === track.id ? "bg-accent" : ""
+                          }`}
+                          onClick={() => router.push(`/tracks/${track.id}`)}
                         >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent align="end" className="w-56 p-0">
-                        <div className="p-1">
-                          <Button
-                            variant="ghost"
-                            className="w-full justify-start"
-                            onClick={() => handleLikeSong(song.id, song.title)}
-                          >
-                            Add to Liked Songs
-                          </Button>
+                          <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-md">
+                            <img
+                              src={
+                                `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${track.imageUrl}` ||
+                                "/placeholder.svg"
+                              }
+                              alt={track.title}
+                              className="h-full w-full object-cover"
+                            />
+                            <div
+                              className={`absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity ${
+                                playingSongId === track.id
+                                  ? "opacity-100"
+                                  : "opacity-0 group-hover:opacity-100"
+                              }`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePlaySong(track.id);
+                              }}
+                            >
+                              {playingSongId === track.id ? (
+                                <div className="h-3 w-3 animate-pulse rounded-full bg-white"></div>
+                              ) : (
+                                <Play className="h-6 w-6 text-white" />
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1 font-medium truncate">
+                              {track.title}
+                            </div>
+                            <div
+                              className="text-sm text-muted-foreground truncate cursor-pointer hover:underline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/albums/${album?.id}`);
+                              }}
+                            >
+                              {album?.title}
+                            </div>
+                          </div>
+                          <div className="text-sm text-muted-foreground hidden md:block">
+                            {track.playsCount}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {track.duration}
+                          </div>
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button
                                 variant="ghost"
-                                className="w-full justify-between"
+                                size="icon"
+                                className="opacity-0 group-hover:opacity-100"
+                                onClick={(e) => e.stopPropagation()}
                               >
-                                Add to Playlist
-                                <span>▶</span>
+                                <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </PopoverTrigger>
-                            <PopoverContent
-                              align="end"
-                              side="right"
-                              className="w-56 p-0"
-                            >
-                              <div className="p-1 max-h-60 overflow-auto">
-                                {userPlaylists.map((playlist) => (
-                                  <Button
-                                    key={playlist.id}
-                                    variant="ghost"
-                                    className="w-full justify-start text-sm"
-                                    onClick={() =>
-                                      handleAddToPlaylist(
-                                        song.id,
-                                        song.title,
-                                        playlist.id,
-                                        playlist.name
-                                      )
-                                    }
+                            <PopoverContent align="end" className="w-56 p-0">
+                              <div className="p-1">
+                                <Button
+                                  variant="ghost"
+                                  className="w-full justify-start"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                  }}
+                                >
+                                  Add to Liked Songs
+                                </Button>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      className="w-full justify-between"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      Add to Playlist
+                                      <span>▶</span>
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent
+                                    align="start"
+                                    className="w-64 p-0"
                                   >
-                                    {playlist.name}
-                                  </Button>
-                                ))}
+                                    <div className="p-3 font-medium border-b">
+                                      Add to playlist
+                                    </div>
+                                    <ScrollArea className="h-60">
+                                      {user && (
+                                        <div className="space-y-1 p-2">
+                                          {playlists.map((playlist) => (
+                                            <Button
+                                              key={playlist.id}
+                                              variant="ghost"
+                                              className="w-full justify-start h-12 group relative"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                addOrRemoveFromPlaylist(
+                                                  playlist.id,
+                                                  track.id,
+                                                  track
+                                                );
+                                              }}
+                                            >
+                                              <div className="w-10 h-10 rounded mr-3 flex items-center justify-center overflow-hidden bg-muted relative">
+                                                <img
+                                                  src={
+                                                    `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${playlist.coverUrl}` ||
+                                                    "/placeholder.svg"
+                                                  }
+                                                  alt={playlist.name}
+                                                  className="w-full h-full object-cover"
+                                                />
+                                                <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                  {playlist.tracks.some(
+                                                    (t) => t.id === track.id
+                                                  ) ? (
+                                                    <Minus className="h-4 w-4 text-white" />
+                                                  ) : (
+                                                    <Plus className="h-4 w-4 text-white" />
+                                                  )}
+                                                </div>
+                                              </div>
+                                              <div className="text-left">
+                                                <div className="font-medium">
+                                                  {playlist.name}
+                                                </div>
+                                                <div className="text-xs text-muted-foreground">
+                                                  {playlist.tracks.length}{" "}
+                                                  tracks
+                                                </div>
+                                              </div>
+                                            </Button>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </ScrollArea>
+                                  </PopoverContent>
+                                </Popover>
+                                <Button
+                                  variant="ghost"
+                                  className="w-full justify-start"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  Share
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  className="w-full justify-start"
+                                  onClick={() =>
+                                    router.push(`/albums/${track.albumId}`)
+                                  }
+                                >
+                                  Go to Album
+                                </Button>
                               </div>
                             </PopoverContent>
                           </Popover>
-                          <Button
-                            variant="ghost"
-                            className="w-full justify-start"
-                            onClick={handleShare}
-                          >
-                            Share
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            className="w-full justify-start"
-                            onClick={() =>
-                              router.push(`/albums/${song.albumId}`)
-                            }
-                          >
-                            Go to Album
-                          </Button>
                         </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                ))}
-              </div>
-              <Button
-                variant="link"
-                className="mt-2 px-2"
-                onClick={() => setShowMoreTracks(!showMoreTracks)}
-              >
-                {showMoreTracks ? "Show less" : "See more"}
-              </Button>
-            </section>
-
-            <section>
-              <h2 className="mb-6 text-2xl font-bold">Albums</h2>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-                {albums.map((album) => (
-                  <Card
-                    key={album.id}
-                    className="group cursor-pointer transition-all hover:bg-accent"
-                    onClick={() => router.push(`/albums/${album.id}`)}
+                      );
+                    })}
+                </div>
+                {artist.tracks.length > 5 && (
+                  <Button
+                    variant="link"
+                    className="mt-2 px-2"
+                    onClick={() => setShowMoreTracks(!showMoreTracks)}
                   >
-                    <CardContent className="p-3">
-                      <div className="relative overflow-hidden rounded-md">
-                        <img
-                          src={album.cover || "/placeholder.svg"}
-                          alt={album.title}
-                          className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-                          <Button
-                            variant="secondary"
-                            size="icon"
-                            className="h-12 w-12 rounded-full"
-                          >
-                            <Play className="h-6 w-6" />
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="mt-2">
-                        <h3 className="font-semibold line-clamp-1">
-                          {album.title}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          {album.year} • {album.tracks} tracks
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </section>
+                    {showMoreTracks ? "Show less" : "See more"}
+                  </Button>
+                )}
+              </section>
+            )}
 
-            <section>
-              <h2 className="mb-6 text-2xl font-bold">Fans might also like</h2>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                {similarArtists.map((artist) => (
-                  <div
-                    key={artist.id}
-                    className="group cursor-pointer"
-                    onClick={() => router.push(`/artists/${artist.id}`)}
-                  >
-                    <div className="overflow-hidden rounded-full">
-                      <img
-                        src={artist.image || "/placeholder.svg"}
-                        alt={artist.name}
-                        className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                    </div>
-                    <div className="mt-2 text-center">
-                      <h3 className="font-semibold line-clamp-1">
-                        {artist.name}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        {artist.followers} followers
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </TabsContent>
-
-          <TabsContent value="discography">
-            <div className="space-y-8">
+            {artist.albums.length > 0 && (
               <section>
-                <h2 className="mb-6 text-2xl font-bold">All Albums</h2>
-                <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                  {albums.map((album) => (
+                <h2 className="mb-6 text-2xl font-bold">Albums</h2>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                  {artist.albums.map((album) => (
                     <Card
                       key={album.id}
                       className="group cursor-pointer transition-all hover:bg-accent"
@@ -712,7 +534,10 @@ export function ArtistView({ id }: ArtistViewProps) {
                       <CardContent className="p-3">
                         <div className="relative overflow-hidden rounded-md">
                           <img
-                            src={album.cover || "/placeholder.svg"}
+                            src={
+                              `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${album.imageUrl}` ||
+                              "/placeholder.svg"
+                            }
                             alt={album.title}
                             className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105"
                           />
@@ -731,7 +556,8 @@ export function ArtistView({ id }: ArtistViewProps) {
                             {album.title}
                           </h3>
                           <p className="text-sm text-muted-foreground">
-                            {album.year} • {album.tracks} tracks
+                            {new Date(album.releaseDate).getFullYear()} •{" "}
+                            {album.tracks.length} tracks
                           </p>
                         </div>
                       </CardContent>
@@ -739,245 +565,323 @@ export function ArtistView({ id }: ArtistViewProps) {
                   ))}
                 </div>
               </section>
+            )}
 
-              <section>
-                <h2 className="mb-6 text-2xl font-bold">All Songs</h2>
-                <div className="grid gap-3">
-                  {topSongs.map((song) => (
-                    <div
-                      key={song.id}
-                      className={`group flex items-center gap-4 rounded-md p-2 transition-colors hover:bg-accent ${
-                        playingSongId === song.id ? "bg-accent" : ""
-                      }`}
-                    >
-                      <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-md">
-                        <img
-                          src={song.cover || "/placeholder.svg"}
-                          alt={song.title}
-                          className="h-full w-full object-cover"
-                        />
-                        <div
-                          className={`absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity ${
-                            playingSongId === song.id
-                              ? "opacity-100"
-                              : "opacity-0 group-hover:opacity-100"
-                          }`}
-                          onClick={() => handlePlaySong(song.id)}
-                        >
-                          {playingSongId === song.id ? (
-                            <div className="h-3 w-3 animate-pulse rounded-full bg-white"></div>
-                          ) : (
-                            <Play className="h-6 w-6 text-white" />
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1 font-medium truncate">
-                          {song.title}
-                          {song.isExplicit && (
-                            <span className="ml-1 rounded-sm bg-muted px-1 text-xs">
-                              E
-                            </span>
-                          )}
-                        </div>
-                        <div
-                          className="text-sm text-muted-foreground truncate cursor-pointer hover:underline"
-                          onClick={() => router.push(`/albums/${song.albumId}`)}
-                        >
-                          {song.album}
-                        </div>
-                      </div>
-                      <div className="text-sm text-muted-foreground hidden md:block">
-                        {song.plays}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {formatTime(song.duration)}
-                      </div>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="opacity-0 group-hover:opacity-100"
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent align="end" className="w-56 p-0">
-                          <div className="p-1">
-                            <Button
-                              variant="ghost"
-                              className="w-full justify-start"
-                              onClick={() =>
-                                handleLikeSong(song.id, song.title)
+            <section>
+              <h2 className="mb-6 text-2xl font-bold">Fans might also like</h2>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                {artists.map((artist) => (
+                  <div
+                    key={artist.id}
+                    className="group cursor-pointer"
+                    onClick={() => router.push(`/artists/${artist.id}`)}
+                  >
+                    <div className="overflow-hidden rounded-full">
+                      <img
+                        src={
+                          `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${artist.imageUrl}` ||
+                          "/placeholder.svg"
+                        }
+                        alt={artist.name}
+                        className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    </div>
+                    <div className="mt-2 text-center">
+                      <h3 className="font-semibold line-clamp-1">
+                        {artist.name}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {subscribers} followers
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </TabsContent>
+
+          <TabsContent value="discography">
+            <div className="space-y-8">
+              {artist.albums.length > 0 && (
+                <section>
+                  <h2 className="mb-6 text-2xl font-bold">All Albums</h2>
+                  <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                    {artist.albums.map((album) => (
+                      <Card
+                        key={album.id}
+                        className="group cursor-pointer transition-all hover:bg-accent"
+                        onClick={() => router.push(`/albums/${album.id}`)}
+                      >
+                        <CardContent className="p-3">
+                          <div className="relative overflow-hidden rounded-md">
+                            <img
+                              src={
+                                `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${album.imageUrl}` ||
+                                "/placeholder.svg"
                               }
+                              alt={album.title}
+                              className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                              <Button
+                                variant="secondary"
+                                size="icon"
+                                className="h-12 w-12 rounded-full"
+                              >
+                                <Play className="h-6 w-6" />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="mt-2">
+                            <h3 className="font-semibold line-clamp-1">
+                              {album.title}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(album.releaseDate).getFullYear()}•{" "}
+                              {album.tracks.length} tracks
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {artist.tracks.length > 0 && (
+                <section>
+                  <h2 className="mb-6 text-2xl font-bold">All Tracks</h2>
+                  <div className="grid gap-3">
+                    {artist.tracks.map((track) => {
+                      const album = getAlbumByTrackId(track.id);
+                      return (
+                        <div
+                          key={track.id}
+                          className={`group flex items-center gap-4 rounded-md p-2 transition-colors hover:bg-accent ${
+                            playingSongId === track.id ? "bg-accent" : ""
+                          }`}
+                        >
+                          <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-md">
+                            <img
+                              src={
+                                `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${track.imageUrl}` ||
+                                "/placeholder.svg"
+                              }
+                              alt={track.title}
+                              className="h-full w-full object-cover"
+                            />
+                            <div
+                              className={`absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity ${
+                                playingSongId === track.id
+                                  ? "opacity-100"
+                                  : "opacity-0 group-hover:opacity-100"
+                              }`}
+                              onClick={() => handlePlaySong(track.id)}
                             >
-                              Add to Liked Songs
-                            </Button>
-                            <Popover>
-                              <PopoverTrigger asChild>
+                              {playingSongId === track.id ? (
+                                <div className="h-3 w-3 animate-pulse rounded-full bg-white"></div>
+                              ) : (
+                                <Play className="h-6 w-6 text-white" />
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1 font-medium truncate">
+                              {track.title}
+                            </div>
+                            <div
+                              className="text-sm text-muted-foreground truncate cursor-pointer hover:underline"
+                              onClick={(e) => {
+                                e.stopPropagation;
+                                router.push(`/albums/${album?.id}`);
+                              }}
+                            >
+                              {album?.title}
+                            </div>
+                          </div>
+                          <div className="text-sm text-muted-foreground hidden md:block">
+                            {track.plays}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {track.duration}
+                          </div>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="opacity-0 group-hover:opacity-100"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent align="end" className="w-56 p-0">
+                              <div className="p-1">
                                 <Button
                                   variant="ghost"
-                                  className="w-full justify-between"
+                                  className="w-full justify-start"
                                 >
-                                  Add to Playlist
-                                  <span>▶</span>
+                                  Add to Liked Songs
                                 </Button>
-                              </PopoverTrigger>
-                              <PopoverContent
-                                align="end"
-                                side="right"
-                                className="w-56 p-0"
-                              >
-                                <div className="p-1 max-h-60 overflow-auto">
-                                  {userPlaylists.map((playlist) => (
+                                <Popover>
+                                  <PopoverTrigger asChild>
                                     <Button
-                                      key={playlist.id}
                                       variant="ghost"
-                                      className="w-full justify-start text-sm"
-                                      onClick={() =>
-                                        handleAddToPlaylist(
-                                          song.id,
-                                          song.title,
-                                          playlist.id,
-                                          playlist.name
-                                        )
-                                      }
+                                      className="w-full justify-between"
                                     >
-                                      {playlist.name}
+                                      Add to Playlist
+                                      <span>▶</span>
                                     </Button>
-                                  ))}
-                                </div>
-                              </PopoverContent>
-                            </Popover>
-                            <Button
-                              variant="ghost"
-                              className="w-full justify-start"
-                              onClick={handleShare}
-                            >
-                              Share
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              className="w-full justify-start"
-                              onClick={() =>
-                                router.push(`/albums/${song.albumId}`)
-                              }
-                            >
-                              Go to Album
-                            </Button>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  ))}
-                </div>
-              </section>
+                                  </PopoverTrigger>
+                                  <PopoverContent
+                                    align="start"
+                                    className="w-64 p-0"
+                                  >
+                                    <div className="p-3 font-medium border-b">
+                                      Add to playlist
+                                    </div>
+                                    <ScrollArea className="h-60">
+                                      {user && (
+                                        <div className="space-y-1 p-2">
+                                          {playlists.map((playlist) => (
+                                            <Button
+                                              key={playlist.id}
+                                              variant="ghost"
+                                              className="w-full justify-start h-12 group relative"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                addOrRemoveFromPlaylist(
+                                                  playlist.id,
+                                                  track.id,
+                                                  track
+                                                );
+                                              }}
+                                            >
+                                              <div className="w-10 h-10 rounded mr-3 flex items-center justify-center overflow-hidden bg-muted relative">
+                                                <img
+                                                  src={
+                                                    `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${playlist.coverUrl}` ||
+                                                    "/placeholder.svg"
+                                                  }
+                                                  alt={playlist.name}
+                                                  className="w-full h-full object-cover"
+                                                />
+                                                <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                  {playlist.tracks.some(
+                                                    (t) => t.id === track.id
+                                                  ) ? (
+                                                    <Minus className="h-4 w-4 text-white" />
+                                                  ) : (
+                                                    <Plus className="h-4 w-4 text-white" />
+                                                  )}
+                                                </div>
+                                              </div>
+                                              <div className="text-left">
+                                                <div className="font-medium">
+                                                  {playlist.name}
+                                                </div>
+                                                <div className="text-xs text-muted-foreground">
+                                                  {playlist.tracks.length}{" "}
+                                                  tracks
+                                                </div>
+                                              </div>
+                                            </Button>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </ScrollArea>
+                                  </PopoverContent>
+                                </Popover>
+                                <Button
+                                  variant="ghost"
+                                  className="w-full justify-start"
+                                >
+                                  Share
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  className="w-full justify-start"
+                                  onClick={() =>
+                                    router.push(`/albums/${track.albumId}`)
+                                  }
+                                >
+                                  Go to Album
+                                </Button>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
             </div>
           </TabsContent>
 
           <TabsContent value="nfts">
             <div className="space-y-8">
-              <section>
-                <h2 className="mb-6 text-2xl font-bold">Artist NFTs</h2>
-                <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-5">
-                  {artistNFTs.map((nft) => (
-                    <Card
-                      key={nft.id}
-                      className="overflow-hidden transition-all hover:shadow-md"
-                    >
-                      <div className="relative">
-                        <img
-                          src={nft.image || "/placeholder.svg"}
-                          alt={nft.title}
-                          className="aspect-square w-full object-cover"
-                        />
-                        <div className="absolute top-2 right-2">
-                          <Badge className="bg-primary/80 text-primary-foreground">
-                            NFT
-                          </Badge>
-                        </div>
-                      </div>
-                      <CardContent className="p-4">
-                        <h3 className="font-bold line-clamp-1 text-sm">
-                          {nft.title}
-                        </h3>
-                        <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                          {nft.description}
-                        </p>
-
-                        <div className="mt-3 flex items-center justify-between">
-                          <div className="flex items-center gap-1">
-                            <span className="text-sm font-medium">
-                              {nft.price} {nft.currency}
-                            </span>
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {nft.minted}/{nft.totalSupply}
+              {nfts.length > 0 && (
+                <section>
+                  <h2 className="mb-6 text-2xl font-bold">Artist NFTs</h2>
+                  <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-5">
+                    {nfts.map((nft) => (
+                      <Card
+                        key={nft.id}
+                        className="overflow-hidden transition-all hover:shadow-md cursor-pointer"
+                        onClick={() =>
+                          router.push(`/nft-marketplace/collection/${nft.id}`)
+                        }
+                      >
+                        <div className="relative">
+                          <img
+                            src={nft.imageUrl || "/placeholder.svg"}
+                            alt={nft.name}
+                            className="aspect-square w-full object-cover"
+                          />
+                          <div className="absolute top-2 right-2">
+                            <Badge className="bg-primary/80 text-primary-foreground">
+                              NFT
+                            </Badge>
                           </div>
                         </div>
+                        <CardContent className="p-4">
+                          <h3 className="font-bold line-clamp-1 text-sm">
+                            {nft.name}
+                          </h3>
 
-                        <div className="mt-3 w-full bg-muted rounded-full h-2">
-                          <div
-                            className="bg-primary h-2 rounded-full"
-                            style={{
-                              width: `${(nft.minted / nft.totalSupply) * 100}%`,
-                            }}
-                          ></div>
-                        </div>
+                          <div className="mt-3 flex items-center justify-between">
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm font-medium">
+                                {nft.currency.symbol} {nft.price}
+                              </span>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {nft.minted}/{nft.supply}
+                            </div>
+                          </div>
 
-                        <Button
-                          className="w-full mt-4"
-                          onClick={() => handleMintNFT(nft.id, nft.title)}
-                          disabled={nft.minted >= nft.totalSupply}
-                        >
-                          {nft.minted >= nft.totalSupply
-                            ? "Sold Out"
-                            : "Mint NFT"}
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </section>
-            </div>
-          </TabsContent>
+                          <div className="mt-3 w-full bg-muted rounded-full h-2">
+                            <div
+                              className="bg-primary h-2 rounded-full"
+                              style={{
+                                width: `${(nft.minted / nft.supply) * 100}%`,
+                              }}
+                            ></div>
+                          </div>
 
-          <TabsContent value="about">
-            <div className="max-w-3xl space-y-6">
-              <h2 className="text-2xl font-bold">About</h2>
-              <p className="text-muted-foreground">{artist.bio}</p>
-              <p className="text-muted-foreground">
-                The Weeknd has won numerous accolades, including four Grammy
-                Awards, 20 Billboard Music Awards, 17 Juno Awards, six American
-                Music Awards, two MTV Video Music Awards, and nominations for an
-                Academy Award, a Latin Grammy Award, and a Primetime Emmy Award.
-              </p>
-
-              <div className="pt-4">
-                <h3 className="text-xl font-semibold mb-4">
-                  Career Highlights
-                </h3>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li>• Released debut mixtape "House of Balloons" in 2011</li>
-                  <li>• Signed with Republic Records in 2012</li>
-                  <li>• Released debut studio album "Kiss Land" in 2013</li>
-                  <li>
-                    • "Beauty Behind the Madness" (2015) topped the Billboard
-                    200
-                  </li>
-                  <li>
-                    • "Starboy" (2016) debuted at number one on the Billboard
-                    200
-                  </li>
-                  <li>
-                    • "After Hours" (2020) spawned the global hit "Blinding
-                    Lights"
-                  </li>
-                  <li>• Headlined the Super Bowl LV halftime show in 2021</li>
-                  <li>• Released "Dawn FM" in 2022</li>
-                </ul>
-              </div>
+                          <Button
+                            className="w-full mt-4"
+                            disabled={nft.minted >= nft.supply}
+                          >
+                            {nft.minted >= nft.supply ? "Sold Out" : "Mint NFT"}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </section>
+              )}
             </div>
           </TabsContent>
         </Tabs>

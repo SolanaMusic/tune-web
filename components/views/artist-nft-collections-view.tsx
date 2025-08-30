@@ -45,12 +45,11 @@ export function ArtistNFTCollectionsView({ id }: { id: string }) {
       setIsLoading(true);
       const type = tabToApiTypeMap[activeTab];
       const queryParams = new URLSearchParams();
-      queryParams.append("artistId", id);
       if (type) queryParams.append("type", type);
       if (searchQuery) queryParams.append("name", searchQuery);
 
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/artist-collections`,
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/artist-collections/${id}`,
         { params: queryParams }
       );
 

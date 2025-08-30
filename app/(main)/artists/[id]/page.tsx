@@ -1,7 +1,12 @@
 import { ArtistView } from "@/components/views/artist-view";
 
-export default function ArtistPage({ params }: { params: { id: string } }) {
-  return <ArtistView id={params.id} />;
+export default async function ArtistPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const { id } = await params;
+  return <ArtistView id={id} />;
 }
 
 export async function generateStaticParams() {
