@@ -201,6 +201,11 @@ export function ArtistView({ id }: { id: string }) {
     );
   };
 
+  const formatDuration = (duration: string) => {
+    const parts = duration.split(":");
+    return `${parts[1]}:${parts[2]}`;
+  };
+
   const handlePlaySong = (songId: string) => {
     setPlayingSongId(songId === playingSongId ? null : songId);
     console.log(`Playing song: ${songId}`);
@@ -342,7 +347,7 @@ export function ArtistView({ id }: { id: string }) {
                       return (
                         <div
                           key={track.id}
-                          className={`group flex items-center gap-4 rounded-md p-2 transition-colors hover:bg-accent ${
+                          className={`group flex items-center gap-4 rounded-md p-2 transition-colors hover:bg-accent cursor-pointer ${
                             playingSongId === track.id ? "bg-accent" : ""
                           }`}
                           onClick={() => router.push(`/tracks/${track.id}`)}
@@ -388,11 +393,13 @@ export function ArtistView({ id }: { id: string }) {
                               {album?.title}
                             </div>
                           </div>
-                          <div className="text-sm text-muted-foreground hidden md:block">
-                            {track.playsCount}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {track.duration}
+                          <div className="flex space-x-4">
+                            <div className="text-sm text-muted-foreground hidden md:block">
+                              {track.playsCount}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {formatDuration(track.duration)}
+                            </div>
                           </div>
                           <Popover>
                             <PopoverTrigger asChild>
@@ -657,9 +664,10 @@ export function ArtistView({ id }: { id: string }) {
                       return (
                         <div
                           key={track.id}
-                          className={`group flex items-center gap-4 rounded-md p-2 transition-colors hover:bg-accent ${
+                          className={`group flex items-center gap-4 rounded-md p-2 transition-colors hover:bg-accent cursor-pointer ${
                             playingSongId === track.id ? "bg-accent" : ""
                           }`}
+                          onClick={() => router.push(`/tracks/${track.id}`)}
                         >
                           <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-md">
                             <img
@@ -703,7 +711,7 @@ export function ArtistView({ id }: { id: string }) {
                             {track.plays}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            {track.duration}
+                            {formatDuration(track.duration)}
                           </div>
                           <Popover>
                             <PopoverTrigger asChild>
@@ -853,7 +861,7 @@ export function ArtistView({ id }: { id: string }) {
                           <div className="mt-3 flex items-center justify-between">
                             <div className="flex items-center gap-1">
                               <span className="text-sm font-medium">
-                                {nft.currency.symbol} {nft.price}
+                                {nft.price} {nft.currency.symbol}
                               </span>
                             </div>
                             <div className="text-xs text-muted-foreground">

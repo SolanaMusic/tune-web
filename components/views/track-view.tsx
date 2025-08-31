@@ -153,6 +153,11 @@ export function TrackView({ id }: { id: string }) {
     }
   };
 
+  const formatDuration = (duration: string) => {
+    const parts = duration.split(":");
+    return `${parts[1]}:${parts[2]}`;
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -241,7 +246,7 @@ export function TrackView({ id }: { id: string }) {
                   })}
                 </span>
                 <span>•</span>
-                <span>{track.duration}</span>
+                <span>{formatDuration(track.duration)}</span>
                 <span>•</span>
                 <span>{track.playsCount} plays</span>
               </div>
@@ -449,7 +454,7 @@ export function TrackView({ id }: { id: string }) {
                       </p>
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {relatedTrack.duration}
+                      {formatDuration(relatedTrack.duration)}
                     </div>
                   </div>
                 ))}
