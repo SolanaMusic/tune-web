@@ -59,6 +59,7 @@ export function MusicApp() {
       name: url.searchParams.get("username")!,
       role: url.searchParams.get("role")!,
       avatar: url.searchParams.get("avatar")!,
+      tokensAmount: Number(url.searchParams.get("tokensAmount")),
       token,
     };
 

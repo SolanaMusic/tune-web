@@ -12,6 +12,7 @@ import {
   User,
   LayoutDashboard,
   LogOut,
+  Music2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -159,6 +160,17 @@ export function Header() {
 
             {user ? (
               <DropdownMenu>
+                <div className="flex items-center gap-2 rounded-full bg-primary/10 px-2 py-1 md:px-3 md:py-1.5">
+                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary">
+                    <Music2 className="h-3.5 w-3.5 ml-0.5" />
+                  </div>
+                  <span className="text-sm font-medium">
+                    {user.tokensAmount}
+                  </span>
+                  <span className="text-xs text-muted-foreground hidden md:inline">
+                    TUNE
+                  </span>
+                </div>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"

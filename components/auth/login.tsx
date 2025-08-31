@@ -70,6 +70,7 @@ export function Login() {
           name: response.data.user.userName,
           role: response.data.role,
           avatar: `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${response.data.user.profile.avatarUrl}`,
+          tokensAmount: response.data.user.profile.tokensAmount,
           token,
         };
 

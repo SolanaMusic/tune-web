@@ -14,6 +14,7 @@ type User = {
   name: string;
   role: string;
   avatar: string;
+  tokensAmount: number;
   token: string;
 };
 
