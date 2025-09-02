@@ -19,7 +19,7 @@ import {
 } from "@solana/wallet-adapter-react-ui";
 import { clusterApiUrl } from "@solana/web3.js";
 import axios from "axios";
-import { useUser } from "@/context/UserContext";
+import { useUserStore } from "@/stores/UserStore";
 
 export const CryptoWalletLogin: FC = () => {
   const network = WalletAdapterNetwork.Devnet;
@@ -81,7 +81,7 @@ export const CryptoWalletLogin: FC = () => {
 
 const WalletDisplay: FC = () => {
   const router = useRouter();
-  const { user, setUser } = useUser();
+  const { user, setUser } = useUserStore();
   const { connected, publicKey, wallet } = useWallet();
   const [message] = useState("Sign this message to authenticate");
 

@@ -19,12 +19,12 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState } from "react";
 import { CreateContentModal } from "./modals/create-content-modal";
-import { useUser } from "@/context/UserContext";
+import { useUserStore } from "@/stores/UserStore";
 
 export function MobileSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user } = useUser();
+  const { user } = useUserStore();
   const [isCreateContentOpen, setIsCreateContentOpen] = useState(false);
 
   const isActive = (path: string) => {

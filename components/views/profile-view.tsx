@@ -19,15 +19,10 @@ import {
   Wallet,
   ListMusic,
 } from "lucide-react";
-import type { ViewType } from "@/components/music-app";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useRouter } from "next/navigation";
 
-interface ProfileViewProps {
-  onNavigate?: (view: ViewType, id?: string) => void;
-}
-
-export function ProfileView({ onNavigate }: ProfileViewProps) {
+export function ProfileView() {
   const [activeTab, setActiveTab] = useState("overview");
   const router = useRouter();
 

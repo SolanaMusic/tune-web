@@ -27,7 +27,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useUser } from "@/context/UserContext";
 import {
   ConnectionProvider,
   WalletProvider,
@@ -41,10 +40,11 @@ import {
   LedgerWalletAdapter,
 } from "@solana/wallet-adapter-wallets";
 import { WalletDisconnectButton } from "@solana/wallet-adapter-react-ui";
+import { useUserStore } from "@/stores/UserStore";
 
 export function Header() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const { user, logout } = useUser();
+  const { user, logout } = useUserStore();
 
   const network = WalletAdapterNetwork.Devnet;
   const endpoint = useMemo(() => clusterApiUrl(network), [network]);

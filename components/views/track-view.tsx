@@ -31,16 +31,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import axios from "axios";
-import { useUser } from "@/context/UserContext";
+import { useUserStore } from "@/stores/UserStore";
+import { usePlayerStore } from "@/stores/PlayerStore";
 
 export function TrackView({ id }: { id: string }) {
   const router = useRouter();
-  const { user } = useUser();
+  const { user } = useUserStore();
+  const { currentTrack, isPlaying, playOrToggle } = usePlayerStore();
+
   const [isLoading, setIsLoading] = useState(true);
   const [track, setTrack] = useState<any>();
   const [related, setRelated] = useState<any[]>([]);
   const [playlists, setPlaylists] = useState<any[]>([]);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [bgGradient, setBgGradient] = useState(
     "linear-gradient(to bottom, #000, #000)"
@@ -151,6 +153,49 @@ export function TrackView({ id }: { id: string }) {
     } catch (error) {
       console.error("Failed to update playlist", error);
     }
+  };
+
+  const handlePlayTrack = () => {
+    const trackState = {
+      id: track.id,
+      title: track.title,
+      artists: track.artists.map((a) => ({ id: a.id, name: a.name })),
+      cover: `${track.imageUrl}` || "/placeholder.svg",
+      duration: track.duration
+        .split(":")
+        .map(Number)
+        .reduce((acc, val, i, arr) => {
+          if (arr.length === 3) return acc + val * [3600, 60, 1][i];
+          if (arr.length === 2) return acc + val * [60, 1][i];
+          return val;
+        }, 0),
+    };
+
+    playOrToggle(trackState);
+  };
+
+  const handlePlayRelatedTrack = (
+    id: number,
+    title: string,
+    duration: string,
+    artists: []
+  ) => {
+    const trackState = {
+      id,
+      title,
+      artists: artists.map((a) => ({ id: a.id, name: a.name })),
+      cover: `${track.imageUrl}` || "/placeholder.svg",
+      duration: duration
+        .split(":")
+        .map(Number)
+        .reduce((acc, val, i, arr) => {
+          if (arr.length === 3) return acc + val * [3600, 60, 1][i];
+          if (arr.length === 2) return acc + val * [60, 1][i];
+          return val;
+        }, 0),
+    };
+
+    playOrToggle(trackState);
   };
 
   const formatDuration = (duration: string) => {
@@ -272,10 +317,10 @@ export function TrackView({ id }: { id: string }) {
           <div className="flex items-center gap-6 mb-8">
             <Button
               size="lg"
-              onClick={() => setIsPlaying(!isPlaying)}
+              onClick={handlePlayTrack}
               className="!p-0 rounded-full w-12 h-12 bg-primary hover:bg-primary/90 hover:scale-105 transition-all flex items-center justify-center"
             >
-              {isPlaying ? (
+              {isPlaying && currentTrack?.id == track.id ? (
                 <Pause className="h-6 w-6" />
               ) : (
                 <Play className="h-6 w-6" />
@@ -426,38 +471,78 @@ export function TrackView({ id }: { id: string }) {
                 More from {track.artists[0].name}
               </h2>
               <div className="space-y-2">
-                {related.map((relatedTrack) => (
-                  <div
-                    key={relatedTrack.id}
-                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors group"
-                    onClick={() => router.push(`/tracks/${relatedTrack.id}`)}
-                  >
-                    <div className="relative">
-                      <img
-                        src={
-                          `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${relatedTrack.imageUrl}` ||
-                          "/placeholder.svg"
+                {related.map((relatedTrack) => {
+                  const isCurrent = currentTrack?.id === relatedTrack.id;
+                  return (
+                    <div
+                      key={relatedTrack.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors group
+                        ${isCurrent && isPlaying ? "bg-accent/50" : ""}
+                        ${
+                          isCurrent && !isPlaying
+                            ? "bg-accent/25 hover:bg-accent/50"
+                            : ""
                         }
-                        alt={relatedTrack.title}
-                        className="w-12 h-12 rounded-md object-cover"
-                      />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-md flex items-center justify-center">
-                        <Play className="h-4 w-4 text-white" />
+                        ${!isCurrent ? "hover:bg-muted/50" : ""}
+                      `}
+                    >
+                      <div
+                        className="relative"
+                        onClick={() =>
+                          handlePlayRelatedTrack(
+                            relatedTrack.id,
+                            relatedTrack.title,
+                            relatedTrack.duration,
+                            relatedTrack.artists
+                          )
+                        }
+                      >
+                        <img
+                          src={
+                            `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${relatedTrack.imageUrl}` ||
+                            "/placeholder.svg"
+                          }
+                          alt={relatedTrack.title}
+                          className="w-12 h-12 rounded-md object-cover"
+                        />
+                        <div
+                          className={`absolute inset-0 bg-black/40 rounded-md flex items-center justify-center transition-opacity ${
+                            isCurrent && isPlaying
+                              ? "opacity-100"
+                              : "opacity-0 group-hover:opacity-100"
+                          }`}
+                        >
+                          {isCurrent && isPlaying ? (
+                            <>
+                              <div className="h-3 w-3 animate-pulse rounded-full bg-white group-hover:hidden"></div>
+                              <Pause className="h-5 w-5 text-white hidden group-hover:flex" />
+                            </>
+                          ) : (
+                            <>
+                              <Play className="h-5 w-5 text-white hidden group-hover:flex" />
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4
+                          className="font-medium truncate transition-colors group-hover:text-primary"
+                          onClick={() =>
+                            router.push(`/tracks/${relatedTrack.id}`)
+                          }
+                        >
+                          {relatedTrack.title}
+                        </h4>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {relatedTrack.playsCount} plays
+                        </p>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {formatDuration(relatedTrack.duration)}
                       </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium truncate group-hover:text-primary transition-colors">
-                        {relatedTrack.title}
-                      </h4>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {relatedTrack.playsCount} plays
-                      </p>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {formatDuration(relatedTrack.duration)}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>

@@ -6,11 +6,11 @@ import axios from "axios";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Play, Pause, Loader2 } from "lucide-react";
-import { useUser } from "@/context/UserContext";
+import { useUserStore } from "@/stores/UserStore";
 
 export function HomeView() {
   const router = useRouter();
-  const { user } = useUser();
+  const { user } = useUserStore();
   const [playingItem, setPlayingItem] = useState<string | null>(null);
   const [artists, setArtists] = useState<[]>([]);
   const [albums, setAlbums] = useState<[]>([]);

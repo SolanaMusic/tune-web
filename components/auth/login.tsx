@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { CryptoWalletLogin } from "./crypto-wallet-login";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useUser } from "@/context/UserContext";
+import { useUserStore } from "@/stores/UserStore";
 
 export function Login() {
   const router = useRouter();
@@ -21,7 +21,7 @@ export function Login() {
   const [errors, setErrors] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
-  const { setUser } = useUser();
+  const { setUser } = useUserStore();
 
   const validateForm = () => {
     const newErrors = { email: "", password: "" };

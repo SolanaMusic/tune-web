@@ -26,26 +26,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import type { ViewType } from "@/components/music-app";
 import axios from "axios";
-import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "../ui/card";
+import { useUserStore } from "@/stores/UserStore";
+import { usePlayerStore } from "@/stores/PlayerStore";
 
-interface AlbumViewProps {
-  id: string | null;
-  onNavigate?: (view: ViewType, id?: string) => void;
-}
-
-export function AlbumView({ id, onNavigate }: AlbumViewProps) {
+export function AlbumView({ id }: { id: number }) {
   const router = useRouter();
-  const { user } = useUser();
+  const { user } = useUserStore();
+  const { currentTrack, isPlaying, togglePlay, playOrToggle } =
+    usePlayerStore();
+
   const [isLoading, setIsLoading] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [album, setAlbum] = useState();
   const [moreAlbums, setMoreAlbums] = useState();
-  const [playingTrackId, setPlayingTrackId] = useState();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -68,6 +64,36 @@ export function AlbumView({ id, onNavigate }: AlbumViewProps) {
 
     fetchData();
   }, [id, user]);
+
+  const handlePlayTrack = (id: number, title: string, duration: string) => {
+    const trackState = {
+      id,
+      title,
+      artists: album.artists.map((a) => ({ id: a.id, name: a.name })),
+      cover: `${album.imageUrl}` || "/placeholder.svg",
+      duration: duration
+        .split(":")
+        .map(Number)
+        .reduce((acc, val, i, arr) => {
+          if (arr.length === 3) return acc + val * [3600, 60, 1][i];
+          if (arr.length === 2) return acc + val * [60, 1][i];
+          return val;
+        }, 0),
+    };
+
+    playOrToggle(trackState);
+  };
+
+  const handleAlbumPlay = () => {
+    if (!album || album.tracks.length === 0) return;
+
+    if (currentTrack && album.tracks.some((t) => t.id === currentTrack.id)) {
+      togglePlay();
+    } else {
+      const first = album.tracks[0];
+      handlePlayTrack(first.id, first.title, first.duration);
+    }
+  };
 
   const formatDuration = (duration: string) => {
     const parts = duration.split(":");
@@ -99,14 +125,6 @@ export function AlbumView({ id, onNavigate }: AlbumViewProps) {
 
   const handleLike = () => {
     setIsLiked(!isLiked);
-  };
-
-  const handlePlayAlbum = () => {
-    setIsPlaying(!isPlaying);
-  };
-
-  const handlePlayTrack = (trackId: string) => {
-    setPlayingTrackId(trackId === playingTrackId ? null : trackId);
   };
 
   if (isLoading) {
@@ -185,8 +203,9 @@ export function AlbumView({ id, onNavigate }: AlbumViewProps) {
               </span>
             </div>
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Button className="rounded-full" onClick={handlePlayAlbum}>
-                {isPlaying ? (
+              <Button className="rounded-full" onClick={handleAlbumPlay}>
+                {isPlaying &&
+                album.tracks.some((t) => t.id === currentTrack?.id) ? (
                   <>
                     <Pause className="mr-1 h-5 w-5" />
                     Pause
@@ -252,8 +271,9 @@ export function AlbumView({ id, onNavigate }: AlbumViewProps) {
                           <span>Availability</span>
                         </div>
                         <span className="font-medium">
-                          {album.nftCollection.minted} of{" "}
-                          {album.nftCollection.supply} left
+                          {album.nftCollection.supply -
+                            album.nftCollection.minted}{" "}
+                          of {album.nftCollection.supply} left
                         </span>
                       </div>
 
@@ -332,7 +352,7 @@ export function AlbumView({ id, onNavigate }: AlbumViewProps) {
                   <TableRow
                     key={track.id}
                     className={`group hover:bg-accent/20 ${
-                      playingTrackId === track.id
+                      currentTrack?.id === track.id
                         ? "bg-gradient-to-b from-primary/10 to-background p-6 md:p-8"
                         : ""
                     }`}
@@ -341,7 +361,7 @@ export function AlbumView({ id, onNavigate }: AlbumViewProps) {
                       <div className="relative flex items-center justify-center group">
                         <span
                           className={`transition-opacity ${
-                            playingTrackId === track.id
+                            currentTrack?.id === track.id && isPlaying
                               ? "opacity-0"
                               : "opacity-100 group-hover:opacity-0"
                           }`}
@@ -349,7 +369,7 @@ export function AlbumView({ id, onNavigate }: AlbumViewProps) {
                           {index + 1}
                         </span>
 
-                        {playingTrackId === track.id && (
+                        {currentTrack?.id === track.id && isPlaying && (
                           <div className="h-2.5 w-2.5 rounded-full bg-primary animate-pulse group-hover:hidden"></div>
                         )}
 
@@ -357,10 +377,14 @@ export function AlbumView({ id, onNavigate }: AlbumViewProps) {
                           className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handlePlayTrack(track.id);
+                            handlePlayTrack(
+                              track.id,
+                              track.title,
+                              track.duration
+                            );
                           }}
                         >
-                          {playingTrackId === track.id ? (
+                          {currentTrack?.id === track.id && isPlaying ? (
                             <Pause className="h-4 w-4" />
                           ) : (
                             <Play className="h-4 w-4" />

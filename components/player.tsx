@@ -1,20 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Play,
   Pause,
   SkipBack,
   SkipForward,
   Volume2,
-  Maximize2,
-  Minimize2,
   Repeat,
   Shuffle,
   VolumeX,
   Heart,
   Plus,
   Share2,
+  Minus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -25,65 +24,53 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useToast } from "@/hooks/use-toast";
+import { usePlayerStore } from "@/stores/PlayerStore";
+import { useUserStore } from "@/stores/UserStore";
+import axios from "axios";
+import { useRouter } from "next/navigation";
 
-interface Track {
-  id: string;
-  title: string;
-  artist: string;
-  album: string;
-  cover: string;
-  duration: number;
-  isPlaying: boolean;
-}
+export function Player() {
+  const {
+    currentTrack,
+    isPlaying,
+    volume,
+    currentTime,
+    isMuted,
+    isRepeat,
+    togglePlay,
+    setVolume,
+    setCurrentTime,
+    toggleMute,
+    toggleRepeat,
+  } = usePlayerStore();
 
-interface PlayerProps {
-  track: Track;
-  onTogglePlay: () => void;
-  isVideoMode: boolean;
-  onToggleVideoMode: () => void;
-}
-
-export function Player({
-  track,
-  onTogglePlay,
-  isVideoMode,
-  onToggleVideoMode,
-}: PlayerProps) {
-  const [currentTime, setCurrentTime] = useState(0);
-  const [volume, setVolume] = useState(80);
-  const [isMuted, setIsMuted] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isRepeatOn, setIsRepeatOn] = useState(false);
+  const router = useRouter();
+  const { user } = useUserStore();
   const [isShuffleOn, setIsShuffleOn] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
-  const { toast } = useToast();
+  const [playlists, setPlaylists] = useState([]);
+
+  useEffect(() => {
+    const fetchPlaylists = async () => {
+      try {
+        if (user) {
+          const playlistsResponse = await axios.get(
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}playlists/get-user-playlists/${user.id}`
+          );
+          setPlaylists(playlistsResponse.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch data", error);
+      }
+    };
+
+    fetchPlaylists();
+  }, [user]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  const handleVolumeChange = (value: number[]) => {
-    setVolume(value[0]);
-    if (value[0] === 0) {
-      setIsMuted(true);
-    } else if (isMuted) {
-      setIsMuted(false);
-    }
-  };
-
-  const toggleMute = () => {
-    setIsMuted(!isMuted);
-  };
-
-  const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
-  };
-
-  const toggleRepeat = () => {
-    setIsRepeatOn(!isRepeatOn);
   };
 
   const toggleShuffle = () => {
@@ -92,100 +79,87 @@ export function Player({
 
   const toggleLike = () => {
     setIsLiked(!isLiked);
-    toast({
-      title: isLiked ? "Removed from Liked Songs" : "Added to Liked Songs",
-      description: `"${track.title}" by ${track.artist} has been ${
-        isLiked ? "removed from" : "added to"
-      } your Liked Songs.`,
-      duration: 3000,
-    });
   };
 
-  const handleShare = () => {
-    const shareUrl = `${window.location.origin}/track/${track.id}`;
+  const addOrRemoveFromPlaylist = async (playlistId: number) => {
+    if (!currentTrack) return;
+    const playlist = playlists.find((p) => p.id === playlistId);
 
-    navigator.clipboard
-      .writeText(shareUrl)
-      .then(() => {
-        toast({
-          title: "Link Copied",
-          description: `Link to "${track.title}" by ${track.artist} has been copied to clipboard.`,
-          duration: 3000,
-        });
-      })
-      .catch((err) => {
-        console.error("Failed to copy: ", err);
-        toast({
-          title: "Sharing Failed",
-          description: "Could not copy link to clipboard.",
-          variant: "destructive",
-          duration: 3000,
-        });
-      });
+    if (!playlist) return;
+    const isInPlaylist = playlist.tracks.some((t) => t.id === currentTrack.id);
+
+    try {
+      if (isInPlaylist) {
+        await axios.delete(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}playlists/remove-from-playlist`,
+          { params: { playlistId, trackId: currentTrack.id } }
+        );
+        setPlaylists((prev) =>
+          prev.map((p) =>
+            p.id === playlistId
+              ? {
+                  ...p,
+                  tracks: p.tracks.filter((t) => t.id !== currentTrack.id),
+                }
+              : p
+          )
+        );
+      } else {
+        await axios.post(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}playlists/add-to-playlist`,
+          { playlistId, trackId: currentTrack.id }
+        );
+        setPlaylists((prev) =>
+          prev.map((p) =>
+            p.id === playlistId
+              ? { ...p, tracks: [...p.tracks, currentTrack] }
+              : p
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Failed to update playlist", error);
+    }
   };
 
-  const userPlaylists = [
-    { id: "p1", name: "My Summer Mix", tracks: 24 },
-    { id: "p2", name: "Indie Discoveries", tracks: 42 },
-    { id: "p3", name: "Coding Focus", tracks: 18 },
-    { id: "p4", name: "Throwback Jams", tracks: 36 },
-    { id: "p5", name: "Chill Evening", tracks: 15 },
-    { id: "p6", name: "Workout Motivation", tracks: 28 },
-  ];
-
-  const addToPlaylist = (playlistId: string, playlistName: string) => {
-    toast({
-      title: "Added to Playlist",
-      description: `"${track.title}" has been added to ${playlistName}.`,
-      duration: 3000,
-    });
-  };
+  if (!currentTrack) return null;
 
   return (
     <div
       className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 border-t bg-card transition-all duration-300",
-        isVideoMode && !isFullscreen ? "h-64" : "h-20",
-        isVideoMode && isFullscreen ? "h-screen" : ""
+        "fixed bottom-0 left-0 right-0 z-50 border-t bg-card transition-all duration-300 h-20"
       )}
       style={{ paddingBottom: 100 }}
     >
       <div className="flex h-full flex-col" style={{ paddingTop: 10 }}>
-        {isVideoMode && (
-          <div className="relative flex-1 bg-black">
-            <div className="flex h-full items-center justify-center">
-              <img
-                src={track.cover || "/placeholder.svg"}
-                alt={track.title}
-                className="h-full w-auto max-w-full object-contain"
-              />
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-4 top-4 bg-black/50 text-white hover:bg-black/70"
-              onClick={toggleFullscreen}
-            >
-              {isFullscreen ? (
-                <Minimize2 className="h-5 w-5" />
-              ) : (
-                <Maximize2 className="h-5 w-5" />
-              )}
-            </Button>
-          </div>
-        )}
-
         <div className="flex h-20 items-center px-4">
           <div className="flex w-1/4 items-center gap-3">
             <img
-              src={track.cover || "/placeholder.svg"}
-              alt={track.title}
+              src={
+                `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${currentTrack.cover}` ||
+                "/placeholder.svg"
+              }
+              alt={currentTrack.title}
               className="h-12 w-12 rounded-md object-cover"
             />
             <div className="hidden sm:block">
-              <div className="font-medium line-clamp-1">{track.title}</div>
+              <div className="font-medium line-clamp-1">
+                {currentTrack.title}
+              </div>
               <div className="text-sm text-muted-foreground line-clamp-1">
-                {track.artist}
+                {currentTrack.artists?.length
+                  ? currentTrack.artists.map((artist, index) => (
+                      <span key={artist.id}>
+                        <span
+                          onClick={() => router.push(`/artists/${artist.id}`)}
+                          className="cursor-pointer hover:underline"
+                        >
+                          {artist.name}
+                        </span>
+                        {index < currentTrack.artists.length - 1 && ", "}
+                      </span>
+                    ))
+                  : "Unknown"}
               </div>
             </div>
           </div>
@@ -207,9 +181,9 @@ export function Player({
                 variant="outline"
                 size="icon"
                 className="h-10 w-10 rounded-full"
-                onClick={onTogglePlay}
+                onClick={togglePlay}
               >
-                {track.isPlaying ? (
+                {isPlaying ? (
                   <Pause className="h-5 w-5" />
                 ) : (
                   <Play className="h-5 w-5 pl-0.5" />
@@ -221,7 +195,7 @@ export function Player({
               <Button
                 variant="ghost"
                 size="icon"
-                className={cn("hidden sm:flex", isRepeatOn && "text-primary")}
+                className={cn("hidden sm:flex", isRepeat && "text-primary")}
                 onClick={toggleRepeat}
               >
                 <Repeat className="h-4 w-4" />
@@ -234,13 +208,13 @@ export function Player({
               </div>
               <Slider
                 value={[currentTime]}
-                max={track.duration}
+                max={currentTrack.duration}
                 step={1}
                 onValueChange={(value) => setCurrentTime(value[0])}
                 className="flex-1"
               />
               <div className="text-xs text-muted-foreground">
-                {formatTime(track.duration)}
+                {formatTime(currentTrack.duration)}
               </div>
             </div>
           </div>
@@ -261,31 +235,52 @@ export function Player({
                   <Plus className="h-5 w-5" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent align="end" className="w-64 p-0">
-                <div className="p-3 font-medium">Add to playlist</div>
+              <PopoverContent align="center" className="w-64 p-0">
+                <div className="p-3 font-medium border-b">Add to playlist</div>
                 <ScrollArea className="h-60">
-                  <div className="space-y-1 p-2">
-                    {userPlaylists.map((playlist) => (
-                      <Button
-                        key={playlist.id}
-                        variant="ghost"
-                        className="w-full justify-start"
-                        onClick={() =>
-                          addToPlaylist(playlist.id, playlist.name)
-                        }
-                      >
-                        {playlist.name}
-                        <span className="ml-auto text-xs text-muted-foreground">
-                          {playlist.tracks}
-                        </span>
-                      </Button>
-                    ))}
-                  </div>
+                  {user && (
+                    <div className="space-y-1 p-2">
+                      {playlists.map((playlist) => (
+                        <Button
+                          key={playlist.id}
+                          variant="ghost"
+                          className="w-full justify-start h-12 group relative"
+                          onClick={() => addOrRemoveFromPlaylist(playlist.id)}
+                        >
+                          <div className="w-10 h-10 rounded mr-3 flex items-center justify-center overflow-hidden bg-muted relative">
+                            <img
+                              src={
+                                `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${playlist.coverUrl}` ||
+                                "/placeholder.svg"
+                              }
+                              alt={playlist.name}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {playlist.tracks.some(
+                                (t) => t.id === currentTrack.id
+                              ) ? (
+                                <Minus className="h-4 w-4 text-white" />
+                              ) : (
+                                <Plus className="h-4 w-4 text-white" />
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-left">
+                            <div className="font-medium">{playlist.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {playlist.tracks.length} tracks
+                            </div>
+                          </div>
+                        </Button>
+                      ))}
+                    </div>
+                  )}
                 </ScrollArea>
               </PopoverContent>
             </Popover>
 
-            <Button variant="ghost" size="icon" onClick={handleShare}>
+            <Button variant="ghost" size="icon">
               <Share2 className="h-5 w-5" />
             </Button>
 
@@ -301,7 +296,12 @@ export function Player({
                 value={[isMuted ? 0 : volume]}
                 max={100}
                 step={1}
-                onValueChange={handleVolumeChange}
+                onValueChange={(value) => {
+                  const newVolume = value[0];
+                  setVolume(newVolume);
+                  if (newVolume === 0 && !isMuted) toggleMute();
+                  else if (newVolume > 0 && isMuted) toggleMute();
+                }}
                 className="w-24"
               />
             </div>

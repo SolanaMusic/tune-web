@@ -22,18 +22,21 @@ import {
 } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { useUser } from "@/context/UserContext";
 import axios from "axios";
 import { ScrollArea } from "@radix-ui/react-scroll-area";
+import { useUserStore } from "@/stores/UserStore";
+import { usePlayerStore } from "@/stores/PlayerStore";
 
-export function ArtistView({ id }: { id: string }) {
+export function ArtistView({ id }: { id: number }) {
   const router = useRouter();
-  const { user } = useUser();
+  const { user } = useUserStore();
+  const { currentTrack, isPlaying, togglePlay, playOrToggle } =
+    usePlayerStore();
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscribers, setSubscribers] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
-  const [playingSongId, setPlayingSongId] = useState<string | null>(null);
   const [showMoreTracks, setShowMoreTracks] = useState(false);
   const [artist, setArtist] = useState();
   const [artists, setArtists] = useState([]);
@@ -131,6 +134,48 @@ export function ArtistView({ id }: { id: string }) {
     );
   }
 
+  const handlePlayTrack = (
+    id: number,
+    title: string,
+    duration: string,
+    cover: string,
+    artists: []
+  ) => {
+    const trackState = {
+      id,
+      title,
+      artists: artists.map((a) => ({ id: a.id, name: a.name })),
+      cover: cover || "/placeholder.svg",
+      duration: duration
+        .split(":")
+        .map(Number)
+        .reduce((acc, val, i, arr) => {
+          if (arr.length === 3) return acc + val * [3600, 60, 1][i];
+          if (arr.length === 2) return acc + val * [60, 1][i];
+          return val;
+        }, 0),
+    };
+
+    playOrToggle(trackState);
+  };
+
+  const handlePlayPopular = () => {
+    if (!artist.tracks || artist.tracks.length === 0) return;
+
+    if (currentTrack && artist.tracks.some((t) => t.id === currentTrack.id)) {
+      togglePlay();
+    } else {
+      const first = artist.tracks[0];
+      handlePlayTrack(
+        first.id,
+        first.title,
+        first.duration,
+        first.imageUrl,
+        first.artists
+      );
+    }
+  };
+
   const addOrRemoveFromPlaylist = async (
     playlistId: number,
     trackId: number,
@@ -206,11 +251,6 @@ export function ArtistView({ id }: { id: string }) {
     return `${parts[1]}:${parts[2]}`;
   };
 
-  const handlePlaySong = (songId: string) => {
-    setPlayingSongId(songId === playingSongId ? null : songId);
-    console.log(`Playing song: ${songId}`);
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -259,11 +299,9 @@ export function ArtistView({ id }: { id: string }) {
                 </span>
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-3">
-                <Button
-                  className="rounded-full"
-                  onClick={() => handlePlaySong("s1")}
-                >
-                  {playingSongId === "s1" ? (
+                <Button className="rounded-full" onClick={handlePlayPopular}>
+                  {isPlaying &&
+                  artist.tracks.some((t) => t.id === currentTrack?.id) ? (
                     <>
                       <Pause className="mr-1 h-5 w-5" />
                       Pause
@@ -347,9 +385,23 @@ export function ArtistView({ id }: { id: string }) {
                       return (
                         <div
                           key={track.id}
-                          className={`group flex items-center gap-4 rounded-md p-2 transition-colors hover:bg-accent cursor-pointer ${
-                            playingSongId === track.id ? "bg-accent" : ""
-                          }`}
+                          className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors group hover:bg-accent cursor-pointer
+                            ${
+                              currentTrack?.id === track.id && isPlaying
+                                ? "bg-accent/50"
+                                : ""
+                            }
+                            ${
+                              currentTrack?.id === track.id && !isPlaying
+                                ? "bg-accent/25 hover:bg-accent/50"
+                                : ""
+                            }
+                            ${
+                              !currentTrack?.id === track.id
+                                ? "hover:bg-muted/50"
+                                : ""
+                            }
+                          `}
                           onClick={() => router.push(`/tracks/${track.id}`)}
                         >
                           <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-md">
@@ -362,21 +414,34 @@ export function ArtistView({ id }: { id: string }) {
                               className="h-full w-full object-cover"
                             />
                             <div
-                              className={`absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity ${
-                                playingSongId === track.id
+                              className={`absolute inset-0 bg-black/40 rounded-md flex items-center justify-center transition-opacity ${
+                                currentTrack?.id === track.id && isPlaying
                                   ? "opacity-100"
                                   : "opacity-0 group-hover:opacity-100"
                               }`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handlePlaySong(track.id);
+                                handlePlayTrack(
+                                  track.id,
+                                  track.title,
+                                  track.duration,
+                                  track.imageUrl,
+                                  track.artists
+                                );
                               }}
                             >
-                              {playingSongId === track.id ? (
-                                <div className="h-3 w-3 animate-pulse rounded-full bg-white"></div>
-                              ) : (
-                                <Play className="h-6 w-6 text-white" />
-                              )}
+                              <div className="relative group h-6 w-6 flex items-center justify-center">
+                                {currentTrack?.id === track.id && isPlaying ? (
+                                  <>
+                                    <div className="h-3 w-3 animate-pulse rounded-full bg-white group-hover:hidden"></div>
+                                    <Pause className="h-5 w-5 text-white hidden group-hover:flex" />
+                                  </>
+                                ) : (
+                                  <>
+                                    <Play className="h-5 w-5 text-white hidden group-hover:flex" />
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
                           <div className="flex-1 min-w-0">
@@ -598,7 +663,7 @@ export function ArtistView({ id }: { id: string }) {
                         {artist.name}
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        {subscribers} followers
+                        {artist.subscribersCount} followers
                       </p>
                     </div>
                   </div>
@@ -664,9 +729,23 @@ export function ArtistView({ id }: { id: string }) {
                       return (
                         <div
                           key={track.id}
-                          className={`group flex items-center gap-4 rounded-md p-2 transition-colors hover:bg-accent cursor-pointer ${
-                            playingSongId === track.id ? "bg-accent" : ""
-                          }`}
+                          className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors group hover:bg-accent cursor-pointer
+                            ${
+                              currentTrack?.id === track.id && isPlaying
+                                ? "bg-accent/50"
+                                : ""
+                            }
+                            ${
+                              currentTrack?.id === track.id && !isPlaying
+                                ? "bg-accent/25 hover:bg-accent/50"
+                                : ""
+                            }
+                            ${
+                              !currentTrack?.id === track.id
+                                ? "hover:bg-muted/50"
+                                : ""
+                            }
+                          `}
                           onClick={() => router.push(`/tracks/${track.id}`)}
                         >
                           <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-md">
@@ -679,18 +758,34 @@ export function ArtistView({ id }: { id: string }) {
                               className="h-full w-full object-cover"
                             />
                             <div
-                              className={`absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity ${
-                                playingSongId === track.id
+                              className={`absolute inset-0 bg-black/40 rounded-md flex items-center justify-center transition-opacity ${
+                                currentTrack?.id === track.id && isPlaying
                                   ? "opacity-100"
                                   : "opacity-0 group-hover:opacity-100"
                               }`}
-                              onClick={() => handlePlaySong(track.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePlayTrack(
+                                  track.id,
+                                  track.title,
+                                  track.duration,
+                                  track.imageUrl,
+                                  track.artists
+                                );
+                              }}
                             >
-                              {playingSongId === track.id ? (
-                                <div className="h-3 w-3 animate-pulse rounded-full bg-white"></div>
-                              ) : (
-                                <Play className="h-6 w-6 text-white" />
-                              )}
+                              <div className="relative group h-6 w-6 flex items-center justify-center">
+                                {currentTrack?.id === track.id && isPlaying ? (
+                                  <>
+                                    <div className="h-3 w-3 animate-pulse rounded-full bg-white group-hover:hidden"></div>
+                                    <Pause className="h-5 w-5 text-white hidden group-hover:flex" />
+                                  </>
+                                ) : (
+                                  <>
+                                    <Play className="h-5 w-5 text-white hidden group-hover:flex" />
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
                           <div className="flex-1 min-w-0">
@@ -708,7 +803,7 @@ export function ArtistView({ id }: { id: string }) {
                             </div>
                           </div>
                           <div className="text-sm text-muted-foreground hidden md:block">
-                            {track.plays}
+                            {track.playsCount}
                           </div>
                           <div className="text-sm text-muted-foreground">
                             {formatDuration(track.duration)}

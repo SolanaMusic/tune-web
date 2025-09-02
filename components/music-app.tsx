@@ -9,8 +9,8 @@ import { ArtistView } from "@/components/views/artist-view";
 import { AlbumView } from "@/components/views/album-view";
 import { SubscriptionView } from "@/components/views/subscription-view";
 import { AdminDashboardView } from "@/components/views/admin-dashboard-view";
-import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
+import { useUserStore } from "@/stores/UserStore";
 
 export type ViewType =
   | "home"
@@ -26,27 +26,14 @@ export type ViewType =
 export function MusicApp() {
   const [currentView, setCurrentView] = useState<ViewType>("home");
   const [currentPlaylist, setCurrentPlaylist] = useState<string | null>(null);
-  const [currentArtistId, setCurrentArtistId] = useState<string | null>(null);
-  const [currentAlbumId, setCurrentAlbumId] = useState<string | null>(null);
-  const { setUser } = useUser();
+  const [currentArtistId, setCurrentArtistId] = useState(0);
+  const [currentAlbumId, setCurrentAlbumId] = useState(0);
+  const { setUser } = useUserStore();
   const router = useRouter();
 
   useEffect(() => {
     handleExternalUser();
   }, []);
-
-  const handleNavigation = (view: ViewType, id?: string) => {
-    setCurrentView(view);
-    if (id) {
-      if (view === "playlist") {
-        setCurrentPlaylist(id);
-      } else if (view === "artist") {
-        setCurrentArtistId(id);
-      } else if (view === "album") {
-        setCurrentAlbumId(id);
-      }
-    }
-  };
 
   const handleExternalUser = () => {
     const url = new URL(window.location.href);
@@ -68,21 +55,13 @@ export function MusicApp() {
   };
 
   return (
-    <Layout onNavigate={handleNavigation}>
-      {currentView === "home" && <HomeView onNavigate={handleNavigation} />}
+    <Layout>
+      {currentView === "home" && <HomeView />}
       {currentView === "playlist" && <PlaylistView id={currentPlaylist} />}
-      {currentView === "profile" && (
-        <ProfileView onNavigate={handleNavigation} />
-      )}
-      {currentView === "artist" && (
-        <ArtistView id={currentArtistId} onNavigate={handleNavigation} />
-      )}
-      {currentView === "album" && (
-        <AlbumView id={currentAlbumId} onNavigate={handleNavigation} />
-      )}
-      {currentView === "subscription" && (
-        <SubscriptionView onNavigate={handleNavigation} />
-      )}
+      {currentView === "profile" && <ProfileView />}
+      {currentView === "artist" && <ArtistView id={currentArtistId} />}
+      {currentView === "album" && <AlbumView id={currentAlbumId} />}
+      {currentView === "subscription" && <SubscriptionView />}
       {currentView === "admin" && <AdminDashboardView />}
     </Layout>
   );

@@ -19,12 +19,12 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { CreateContentModal } from "./modals/create-content-modal";
-import { useUser } from "@/context/UserContext";
+import { useUserStore } from "@/stores/UserStore";
 
 export function Sidebar() {
   const pathname = usePathname();
   const [isCreateContentOpen, setIsCreateContentOpen] = useState(false);
-  const { user } = useUser();
+  const { user } = useUserStore();
 
   const playlists = [
     { id: "1", name: "Discover Weekly" },
