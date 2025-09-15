@@ -41,10 +41,13 @@ import {
 } from "@solana/wallet-adapter-wallets";
 import { WalletDisconnectButton } from "@solana/wallet-adapter-react-ui";
 import { useUserStore } from "@/stores/UserStore";
+import { usePathname, useRouter } from "next/navigation";
 
 export function Header() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { user, logout } = useUserStore();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const network = WalletAdapterNetwork.Devnet;
   const endpoint = useMemo(() => clusterApiUrl(network), [network]);
@@ -76,6 +79,10 @@ export function Header() {
     );
 
     if (disconnectBtn) disconnectBtn.click();
+
+    if (pathname.startsWith("/profile")) {
+      router.push("/");
+    }
   };
 
   return (
