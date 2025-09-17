@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Clock,
   MoreHorizontal,
@@ -9,6 +9,8 @@ import {
   Heart,
   Share2,
   Music,
+  Loader2,
+  ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -20,107 +22,121 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useToast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import axios from "axios";
+import Link from "next/link";
+import { usePlayerStore } from "@/stores/PlayerStore";
+import { useRouter } from "next/navigation";
 
-interface PlaylistViewProps {
-  id: string | null;
-}
-
-export function PlaylistView({ id }: PlaylistViewProps) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [playingTrackId, setPlayingTrackId] = useState<string | null>(null);
-  const [showAllTracks, setShowAllTracks] = useState(false);
+export function PlaylistView({ id }: { id: string }) {
+  const [isLoading, setIsLoading] = useState(true);
+  const [playlist, setPlaylist] = useState();
   const [isLiked, setIsLiked] = useState(id === "liked");
-  const { toast } = useToast();
+  const router = useRouter();
+  const { currentTrack, isPlaying, togglePlay, playOrToggle } =
+    usePlayerStore();
 
-  const playlist = {
-    id: id || "1",
-    title: id === "liked" ? "Liked Songs" : "Discover Weekly",
-    description:
-      id === "liked"
-        ? "Your favorite tracks"
-        : "Your weekly mixtape of fresh music",
-    cover: "/placeholder.svg?height=300&width=300",
-    owner: "MusicFusion",
-    followers: id === "liked" ? "Only you" : "2.3M",
-    totalTracks: 30,
-    duration: "2h 15m",
+  useEffect(() => {
+    const fetchPlaylists = async () => {
+      try {
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}playlists/${id}`
+        );
+        setPlaylist(response.data);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPlaylists();
+  }, []);
+
+  const handlePlayTrack = (id: number, title: string, duration: string) => {
+    var track = playlist.tracks.find((x) => x.id === id);
+
+    const trackState = {
+      id,
+      title,
+      artists: track.artists.map((a) => ({ id: a.id, name: a.name })),
+      cover: playlist.coverUrl,
+      duration: duration
+        .split(":")
+        .map(Number)
+        .reduce((acc, val, i, arr) => {
+          if (arr.length === 3) return acc + val * [3600, 60, 1][i];
+          if (arr.length === 2) return acc + val * [60, 1][i];
+          return val;
+        }, 0),
+    };
+
+    playOrToggle(trackState);
   };
 
-  const tracks = Array.from({ length: 20 }, (_, i) => ({
-    id: `t${i + 1}`,
-    title: `Track ${i + 1}`,
-    artist: `Artist ${Math.floor(i / 3) + 1}`,
-    album: "Album Title",
-    duration: "3:45",
-    isLiked: id === "liked" || Math.random() > 0.5,
-  }));
+  const handlePlayPause = () => {
+    if (!playlist.tracks.length === 0) return;
 
-  const handlePlayPause = (trackId: string | null) => {
-    if (isPlaying && playingTrackId === trackId) {
-      setIsPlaying(false);
-      setPlayingTrackId(null);
+    if (currentTrack && playlist.tracks.some((t) => t.id === currentTrack.id)) {
+      togglePlay();
     } else {
-      setIsPlaying(true);
-      setPlayingTrackId(trackId);
+      const first = playlist.tracks[0];
+      handlePlayTrack(first.id, first.title, first.duration);
     }
   };
 
-  const toggleLike = () => {
-    setIsLiked(!isLiked);
-    toast({
-      title: isLiked ? "Removed from Liked Songs." : "Added to Liked Songs.",
-    });
-  };
+  function formatDuration(tracks: { duration: string }[]): string {
+    const totalSeconds = tracks.reduce((acc, track) => {
+      const parts = track.duration.split(":").map(Number);
+      let seconds = 0;
 
-  const handleShare = () => {
-    const shareUrl = `${window.location.origin}/playlists/${playlist.id}`;
+      if (parts.length === 3) {
+        seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+      } else if (parts.length === 2) {
+        seconds = parts[0] * 60 + parts[1];
+      }
 
-    navigator.clipboard
-      .writeText(shareUrl)
-      .then(() => {
-        toast({
-          title: "Link Copied",
-          description: `Link to "${playlist.title}" has been copied to clipboard.`,
-          duration: 3000,
-        });
-      })
-      .catch((err) => {
-        console.error("Failed to copy: ", err);
-        toast({
-          title: "Sharing Failed",
-          description: "Could not copy link to clipboard.",
-          variant: "destructive",
-          duration: 3000,
-        });
-      });
-  };
+      return acc + seconds;
+    }, 0);
 
-  const handleToggleLikeTrack = (
-    trackId: string,
-    isCurrentlyLiked: boolean
-  ) => {
-    toast({
-      title: isCurrentlyLiked
-        ? "Removed from Liked Songs"
-        : "Added to Liked Songs",
-      description: `Track has been ${
-        isCurrentlyLiked ? "removed from" : "added to"
-      } your Liked Songs.`,
-      duration: 3000,
-    });
-  };
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    const parts = [];
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0) parts.push(`${minutes}m`);
+    if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`);
+
+    return parts.join(" ");
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="translate-y-[-70px]">
+          <Loader2 className="h-20 w-20 animate-spin text-primary" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
-      {/* Playlist Header */}
       <div className="bg-gradient-to-b from-primary/10 to-background p-6 md:p-8">
+        <Button
+          variant="ghost"
+          className="mb-6 flex items-center gap-2 text-xl"
+          onClick={() => router.push("/playlists")}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Playlists
+        </Button>
         <div className="flex flex-col items-center gap-6 md:flex-row">
           <div className="relative h-64 w-64 flex-shrink-0 overflow-hidden rounded-md shadow-lg">
             {id === "liked" ? (
@@ -129,7 +145,11 @@ export function PlaylistView({ id }: PlaylistViewProps) {
               </div>
             ) : (
               <img
-                src={playlist.cover || "/placeholder.svg"}
+                src={
+                  playlist.coverUrl
+                    ? `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${playlist.coverUrl}`
+                    : "/placeholder.svg"
+                }
                 alt="Playlist Cover"
                 className="h-full w-full object-cover"
               />
@@ -138,44 +158,45 @@ export function PlaylistView({ id }: PlaylistViewProps) {
           <div className="flex flex-col items-center text-center md:items-start md:text-left">
             <div className="text-sm font-medium uppercase">Playlist</div>
             <h1 className="mt-1 text-3xl font-bold md:text-5xl">
-              {playlist.title}
+              {playlist.name}
             </h1>
-            <p className="mt-2 text-muted-foreground">{playlist.description}</p>
             <div className="mt-4 flex items-center gap-2">
-              <span className="font-medium">Created by {playlist.owner}</span>
-              <span className="text-muted-foreground">•</span>
-              <span className="text-muted-foreground">
-                {playlist.followers} followers
+              <span className="font-medium">
+                Created by {playlist.owner.userName}
               </span>
               <span className="text-muted-foreground">•</span>
               <span className="text-muted-foreground">
-                {playlist.totalTracks} songs,
+                {playlist.tracks.length} songs,
               </span>
-              <span className="text-muted-foreground">{playlist.duration}</span>
+              <span className="text-muted-foreground">
+                {formatDuration(playlist.tracks)}
+              </span>
             </div>
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Button
                 className="rounded-full"
-                onClick={() => handlePlayPause(tracks[0].id)}
+                onClick={handlePlayPause}
+                disabled={playlist.tracks.length === 0}
               >
-                {isPlaying ? (
-                  <>
-                    <Pause className="mr-1 h-5 w-5" />
-                    Pause
-                  </>
-                ) : (
+                {playlist.tracks.length === 0 || !isPlaying ? (
                   <>
                     <Play className="mr-1 h-5 w-5 fill-primary-foreground" />
                     Play
                   </>
+                ) : (
+                  <>
+                    <Pause className="mr-1 h-5 w-5" />
+                    Pause
+                  </>
                 )}
               </Button>
+
               {id !== "liked" && (
                 <Button
                   variant={isLiked ? "default" : "outline"}
                   size="icon"
                   className="rounded-full"
-                  onClick={toggleLike}
+                  onClick={() => setIsLiked(!isLiked)}
                 >
                   <Heart
                     className={`h-5 w-5 ${
@@ -184,12 +205,7 @@ export function PlaylistView({ id }: PlaylistViewProps) {
                   />
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full"
-                onClick={handleShare}
-              >
+              <Button variant="ghost" size="icon" className="rounded-full">
                 <Share2 className="h-5 w-5" />
               </Button>
               <DropdownMenu>
@@ -212,117 +228,154 @@ export function PlaylistView({ id }: PlaylistViewProps) {
         </div>
       </div>
 
-      {/* Tracklist */}
       <ScrollArea className="flex-1 p-6">
-        {tracks.length > 0 ? (
-          <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[50px]">#</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Artist</TableHead>
-                  <TableHead>Album</TableHead>
-                  <TableHead className="text-right">
-                    <Clock className="ml-auto h-4 w-4" />
-                  </TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tracks
-                  .slice(0, showAllTracks ? tracks.length : 5)
-                  .map((track, index) => (
-                    <TableRow key={track.id} className="group hover:bg-accent">
-                      <TableCell className="font-medium">
-                        <div className="relative flex items-center justify-center">
-                          <span
-                            className={`${
-                              playingTrackId === track.id
-                                ? "opacity-0"
-                                : "group-hover:opacity-0"
-                            }`}
-                          >
-                            {index + 1}
-                          </span>
-                          <div
-                            className={`absolute inset-0 flex items-center justify-center ${
-                              playingTrackId === track.id
-                                ? "opacity-100"
-                                : "opacity-0 group-hover:opacity-100"
-                            }`}
-                            onClick={() => handlePlayPause(track.id)}
-                          >
-                            {playingTrackId === track.id ? (
-                              <div className="h-2 w-2 rounded-full bg-primary"></div>
-                            ) : (
-                              <Play className="h-4 w-4 cursor-pointer" />
-                            )}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{track.title}</TableCell>
-                      <TableCell>{track.artist}</TableCell>
-                      <TableCell>{track.album}</TableCell>
-                      <TableCell className="text-right">
-                        {track.duration}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end">
+        {playlist.tracks.length > 0 ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[50px]">#</TableHead>
+                <TableHead>Title</TableHead>
+                <TableHead>Artist</TableHead>
+                <TableHead>Album</TableHead>
+                <TableHead className="text-right">
+                  <Clock className="ml-auto h-4 w-4" />
+                </TableHead>
+                <TableHead className="w-[50px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {playlist.tracks.map((track, index) => (
+                <TableRow
+                  key={track.id}
+                  className={`group hover:bg-accent/20 ${
+                    currentTrack?.id === track.id
+                      ? "bg-gradient-to-b from-primary/10 to-background p-6 md:p-8"
+                      : ""
+                  }`}
+                >
+                  <TableCell className="text-center font-medium text-muted-foreground">
+                    <div className="relative flex items-center justify-center group">
+                      <span
+                        className={`transition-opacity ${
+                          currentTrack?.id === track.id && isPlaying
+                            ? "opacity-0"
+                            : "opacity-100 group-hover:opacity-0"
+                        }`}
+                      >
+                        {index + 1}
+                      </span>
+
+                      {currentTrack?.id === track.id && isPlaying && (
+                        <div className="h-2.5 w-2.5 rounded-full bg-primary animate-pulse group-hover:hidden"></div>
+                      )}
+
+                      <div
+                        className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePlayTrack(
+                            track.id,
+                            track.title,
+                            track.duration
+                          );
+                        }}
+                      >
+                        {currentTrack?.id === track.id && isPlaying ? (
+                          <Pause className="h-4 w-4" />
+                        ) : (
+                          <Play className="h-4 w-4" />
+                        )}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Link
+                      href={`/tracks/${track.id}`}
+                      className="hover:underline"
+                    >
+                      {track.title}
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    {track.artists.map((artist, index) => (
+                      <span key={artist.id}>
+                        <Link
+                          href={`/artists/${artist.id}`}
+                          className="hover:underline"
+                        >
+                          {artist.name}
+                        </Link>
+                        {index < track.artists.length - 1 && ", "}
+                      </span>
+                    ))}
+                  </TableCell>
+                  <TableCell>
+                    {track.album ? (
+                      <Link
+                        href={`/albums/${track.album.id}`}
+                        className="hover:underline"
+                      >
+                        {track.album.title}
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground">Single</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {(() => {
+                      const parts = track.duration.split(":").map(Number);
+                      if (parts.length === 3) {
+                        const [h, m, s] = parts;
+                        return h > 0
+                          ? `${h}:${m.toString().padStart(2, "0")}:${s
+                              .toString()
+                              .padStart(2, "0")}`
+                          : `${m}:${s.toString().padStart(2, "0")}`;
+                      } else if (parts.length === 2) {
+                        const [m, s] = parts;
+                        return `${m}:${s.toString().padStart(2, "0")}`;
+                      }
+                      return track.duration;
+                    })()}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`${
+                          id !== "liked"
+                            ? "opacity-0 group-hover:opacity-100"
+                            : ""
+                        }`}
+                      >
+                        <Heart
+                          className={`h-4 w-4 ${
+                            track.isLiked ? "fill-primary text-primary" : ""
+                          }`}
+                        />
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className={`${
-                              id !== "liked"
-                                ? "opacity-0 group-hover:opacity-100"
-                                : ""
-                            }`}
-                            onClick={() =>
-                              handleToggleLikeTrack(track.id, track.isLiked)
-                            }
+                            className="opacity-0 group-hover:opacity-100"
                           >
-                            <Heart
-                              className={`h-4 w-4 ${
-                                track.isLiked ? "fill-primary text-primary" : ""
-                              }`}
-                            />
+                            <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="opacity-0 group-hover:opacity-100"
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>Add to queue</DropdownMenuItem>
-                              <DropdownMenuItem>
-                                Add to playlist
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>Go to artist</DropdownMenuItem>
-                              <DropdownMenuItem>Go to album</DropdownMenuItem>
-                              <DropdownMenuItem>Share</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
-            {tracks.length > 5 && (
-              <Button
-                variant="link"
-                className="mt-4"
-                onClick={() => setShowAllTracks(!showAllTracks)}
-              >
-                Show {showAllTracks ? "Less" : "All"}
-              </Button>
-            )}
-          </>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>Add to queue</DropdownMenuItem>
+                          <DropdownMenuItem>Share</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         ) : (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="mb-4 rounded-full bg-muted p-3">
@@ -334,7 +387,9 @@ export function PlaylistView({ id }: PlaylistViewProps) {
                 ? "You haven't liked any songs yet. Start exploring to find songs you love!"
                 : "This playlist is empty. Start adding some tracks!"}
             </p>
-            <Button>Browse Music</Button>
+            <Button asChild>
+              <Link href="/">Browse Music</Link>
+            </Button>
           </div>
         )}
       </ScrollArea>

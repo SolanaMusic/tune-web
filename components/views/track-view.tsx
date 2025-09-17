@@ -365,8 +365,9 @@ export function TrackView({ id }: { id: string }) {
                           <div className="w-10 h-10 rounded mr-3 flex items-center justify-center overflow-hidden bg-muted relative">
                             <img
                               src={
-                                `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${playlist.coverUrl}` ||
-                                "/placeholder.svg"
+                                playlist.coverUrl
+                                  ? `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${playlist.coverUrl}`
+                                  : "/placeholder.svg"
                               }
                               alt={playlist.name}
                               className="w-full h-full object-cover"

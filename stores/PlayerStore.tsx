@@ -149,7 +149,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ ...newState, isRepeat: get().isRepeat })
+        JSON.stringify({
+          ...newState,
+          isRepeat: get().isRepeat,
+          volume: get().volume,
+          isMuted: get().isMuted,
+        })
       );
     },
 

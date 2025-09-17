@@ -25,7 +25,7 @@ export type ViewType =
 
 export function MusicApp() {
   const [currentView, setCurrentView] = useState<ViewType>("home");
-  const [currentPlaylist, setCurrentPlaylist] = useState<string | null>(null);
+  const [currentPlaylist, setCurrentPlaylist] = useState<string>("");
   const [currentArtistId, setCurrentArtistId] = useState(0);
   const [currentAlbumId, setCurrentAlbumId] = useState(0);
   const { setUser } = useUserStore();

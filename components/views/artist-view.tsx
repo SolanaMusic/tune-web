@@ -526,8 +526,9 @@ export function ArtistView({ id }: { id: number }) {
                                               <div className="w-10 h-10 rounded mr-3 flex items-center justify-center overflow-hidden bg-muted relative">
                                                 <img
                                                   src={
-                                                    `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${playlist.coverUrl}` ||
-                                                    "/placeholder.svg"
+                                                    playlist.coverUrl
+                                                      ? `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${playlist.coverUrl}`
+                                                      : "/placeholder.svg"
                                                   }
                                                   alt={playlist.name}
                                                   className="w-full h-full object-cover"
@@ -814,6 +815,7 @@ export function ArtistView({ id }: { id: number }) {
                                 variant="ghost"
                                 size="icon"
                                 className="opacity-0 group-hover:opacity-100"
+                                onClick={(e) => e.stopPropagation()}
                               >
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
@@ -831,6 +833,7 @@ export function ArtistView({ id }: { id: number }) {
                                     <Button
                                       variant="ghost"
                                       className="w-full justify-between"
+                                      onClick={(e) => e.stopPropagation()}
                                     >
                                       Add to Playlist
                                       <span>▶</span>
@@ -863,8 +866,9 @@ export function ArtistView({ id }: { id: number }) {
                                               <div className="w-10 h-10 rounded mr-3 flex items-center justify-center overflow-hidden bg-muted relative">
                                                 <img
                                                   src={
-                                                    `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${playlist.coverUrl}` ||
-                                                    "/placeholder.svg"
+                                                    playlist.coverUrl
+                                                      ? `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${playlist.coverUrl}`
+                                                      : "/placeholder.svg"
                                                   }
                                                   alt={playlist.name}
                                                   className="w-full h-full object-cover"

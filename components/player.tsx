@@ -250,8 +250,9 @@ export function Player() {
                           <div className="w-10 h-10 rounded mr-3 flex items-center justify-center overflow-hidden bg-muted relative">
                             <img
                               src={
-                                `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${playlist.coverUrl}` ||
-                                "/placeholder.svg"
+                                playlist.coverUrl
+                                  ? `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${playlist.coverUrl}`
+                                  : "/placeholder.svg"
                               }
                               alt={playlist.name}
                               className="w-full h-full object-cover"
@@ -298,9 +299,11 @@ export function Player() {
                 step={1}
                 onValueChange={(value) => {
                   const newVolume = value[0];
+                  if (isMuted && newVolume > 0) {
+                    toggleMute();
+                  }
+
                   setVolume(newVolume);
-                  if (newVolume === 0 && !isMuted) toggleMute();
-                  else if (newVolume > 0 && isMuted) toggleMute();
                 }}
                 className="w-24"
               />
