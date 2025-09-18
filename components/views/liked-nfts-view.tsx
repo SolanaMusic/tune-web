@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,126 +14,99 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useUserStore } from "@/stores/UserStore";
+import axios from "axios";
 
 export function LikedNFTsView() {
   const router = useRouter();
-  const { toast } = useToast();
+  const { user } = useUserStore();
+  const [liked, setLiked] = useState<any[]>([]);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<any>();
   const [filterValue, setFilterValue] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState("recent");
 
-  const likedNfts = [
-    {
-      id: "nft1",
-      title: "Cosmic Harmonies #12",
-      artist: "Stellar Sound",
-      type: "Album",
-      imageUrl: "/placeholder.svg?height=200&width=200",
-      price: "0.45 SOL",
-    },
-    {
-      id: "nft2",
-      title: "Digital Dreamscape #7",
-      artist: "Neon Collective",
-      type: "Single",
-      imageUrl: "/placeholder.svg?height=200&width=200",
-      price: "1.2 SOL",
-    },
-    {
-      id: "nft3",
-      title: "Rhythmic Revolution #23",
-      artist: "Beat Masters",
-      type: "Collectible",
-      imageUrl: "/placeholder.svg?height=200&width=200",
-      price: "0.8 SOL",
-    },
-    {
-      id: "nft4",
-      title: "Sonic Serenity #5",
-      artist: "Harmony Hub",
-      type: "Album",
-      imageUrl: "/placeholder.svg?height=200&width=200",
-      price: "0.6 SOL",
-    },
-    {
-      id: "nft5",
-      title: "Melodic Memories #18",
-      artist: "Echo Ensemble",
-      type: "Single",
-      imageUrl: "/placeholder.svg?height=200&width=200",
-      price: "0.35 SOL",
-    },
-    {
-      id: "nft6",
-      title: "Harmonic Horizons #3",
-      artist: "Stellar Sound",
-      type: "Collectible",
-      imageUrl: "/placeholder.svg?height=200&width=200",
-      price: "1.5 SOL",
-    },
-  ];
+  useEffect(() => {
+    if (!user?.id) return;
 
-  const filteredNfts = likedNfts
-    .filter((nft) => {
-      if (filterValue) {
-        const searchLower = filterValue.toLowerCase();
-        return (
-          nft.title.toLowerCase().includes(searchLower) ||
-          nft.artist.toLowerCase().includes(searchLower)
+    const fetchLiked = async () => {
+      try {
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/liked/${user?.id}`
         );
+        setLiked(response.data);
+      } catch (error) {
+        console.error(error);
       }
-      return true;
+    };
+
+    fetchLiked();
+  }, [user]);
+
+  const filteredItems = liked
+    .filter((item) => {
+      if (!filterValue) return true;
+      const searchLower = filterValue.toLowerCase();
+      const name = item.nft?.name || item.collection?.name || "";
+      return name.toLowerCase().includes(searchLower);
     })
-    .filter((nft) => {
-      if (typeFilter !== "all") {
-        return nft.type.toLowerCase() === typeFilter.toLowerCase();
-      }
-      return true;
+    .filter((item) => {
+      if (typeFilter === "all") return true;
+      const type = item.nft ? "nft" : item.collection ? "collection" : "";
+      return type.toLowerCase() === typeFilter.toLowerCase();
     })
     .sort((a, b) => {
-      if (sortOrder === "price-low") {
-        return Number.parseFloat(a.price) - Number.parseFloat(b.price);
-      } else if (sortOrder === "price-high") {
-        return Number.parseFloat(b.price) - Number.parseFloat(a.price);
+      const priceA = a.nft?.price ?? a.collection?.price ?? 0;
+      const priceB = b.nft?.price ?? b.collection?.price ?? 0;
+
+      const dateA = new Date(a.createdDate ?? a.createdDate).getTime();
+      const dateB = new Date(b.createdDate ?? b.createdDate).getTime();
+
+      switch (sortOrder) {
+        case "price-low":
+          return priceA - priceB;
+        case "price-high":
+          return priceB - priceA;
+        case "recent":
+          return dateB - dateA;
+        case "oldest":
+          return dateA - dateB;
+        default:
+          return 0;
       }
-
-      return 0;
     });
 
-  const handleUnlike = (nftId: string, nftTitle: string) => {
-    toast({
-      title: "Removed from Liked NFTs",
-      description: `"${nftTitle}" has been removed from your liked NFTs.`,
-      duration: 3000,
-    });
+  const handleClick = (item: any) => {
+    if (item.nft) router.push(`/nft-marketplace/nft/${item.nft.id}`);
+    else if (item.collection)
+      router.push(`/nft-marketplace/collection/${item.collection.id}`);
   };
 
-  const handleShare = (nftId: string, nftTitle: string) => {
-    const shareUrl = `${window.location.origin}/nft-marketplace/${nftId}`;
+  const deleteItem = async () => {
+    if (!itemToDelete) return;
 
-    navigator.clipboard
-      .writeText(shareUrl)
-      .then(() => {
-        toast({
-          title: "Link Copied",
-          description: `Link to "${nftTitle}" has been copied to clipboard.`,
-          duration: 3000,
-        });
-      })
-      .catch((err) => {
-        console.error("Failed to copy: ", err);
-        toast({
-          title: "Sharing Failed",
-          description: "Could not copy link to clipboard.",
-          variant: "destructive",
-          duration: 3000,
-        });
-      });
-  };
+    try {
+      await axios.delete(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/liked/${itemToDelete.id}`
+      );
 
-  const handleNavigateToNFT = (nftId: string) => {
-    router.push(`/nft-marketplace/${nftId}`);
+      setLiked((prev) => prev.filter((i) => i.id !== itemToDelete.id));
+      setIsDeleteDialogOpen(false);
+      setItemToDelete(null);
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   return (
@@ -141,7 +114,7 @@ export function LikedNFTsView() {
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Liked NFTs</h1>
         <p className="text-muted-foreground">
-          Your favorite music NFTs collection
+          Your favorite music NFTs and collections
         </p>
       </div>
 
@@ -162,9 +135,8 @@ export function LikedNFTsView() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="album">Albums</SelectItem>
-              <SelectItem value="single">Singles</SelectItem>
-              <SelectItem value="collectible">Collectibles</SelectItem>
+              <SelectItem value="nft">NFTs</SelectItem>
+              <SelectItem value="collection">Collections</SelectItem>
             </SelectContent>
           </Select>
           <Select value={sortOrder} onValueChange={setSortOrder}>
@@ -173,6 +145,7 @@ export function LikedNFTsView() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="recent">Recently Liked</SelectItem>
+              <SelectItem value="oldest">Oldest Liked</SelectItem>
               <SelectItem value="price-low">Price: Low to High</SelectItem>
               <SelectItem value="price-high">Price: High to Low</SelectItem>
             </SelectContent>
@@ -180,74 +153,149 @@ export function LikedNFTsView() {
         </div>
       </div>
 
-      {filteredNfts.length > 0 ? (
-        <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-          {filteredNfts.map((nft) => (
-            <Card
-              key={nft.id}
-              className="overflow-hidden transition-all hover:shadow-md cursor-pointer"
-              onClick={() => handleNavigateToNFT(nft.id)}
-            >
-              <div className="relative">
-                <img
-                  src={nft.imageUrl || "/placeholder.svg"}
-                  alt={nft.title}
-                  className="aspect-square w-full object-cover"
-                />
-                <div className="absolute top-2 right-2">
-                  <Badge className="bg-primary/80 text-primary-foreground">
-                    {nft.type}
-                  </Badge>
-                </div>
-                <div className="absolute bottom-2 right-2 flex gap-1">
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleUnlike(nft.id, nft.title);
-                    }}
-                  >
-                    <Heart className="h-4 w-4 fill-primary text-primary" />
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleShare(nft.id, nft.title);
-                    }}
-                  >
-                    <Share2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <CardContent className="p-4">
-                <div>
-                  <h3 className="text-sm font-bold line-clamp-1">
-                    {nft.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">{nft.artist}</p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <div className="text-sm font-semibold">{nft.price}</div>
+      {filteredItems.length > 0 ? (
+        <>
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+            {filteredItems.map((item) => {
+              const data = item.nft || item.collection;
+              const type = item.nft ? "NFT" : "Collection";
+
+              return (
+                <Card
+                  key={item.id}
+                  className="overflow-hidden transition-all hover:shadow-md cursor-pointer"
+                  onClick={() => handleClick(item)}
+                >
+                  <div className="relative">
+                    <img
+                      src={data.imageUrl || "/placeholder.svg"}
+                      alt={data.name}
+                      className="aspect-square w-full object-cover"
+                    />
+                    <div className="absolute top-2 left-2 right-2 flex items-start gap-1">
+                      {item.nft && (
+                        <Badge
+                          variant="outline"
+                          className={`text-xs ${
+                            item.nft.rarity === "Legendary"
+                              ? "border-yellow-500 text-yellow-500"
+                              : item.nft.rarity === "Mythic"
+                              ? "border-red-500 text-red-500"
+                              : item.nft.rarity === "Epic"
+                              ? "border-purple-500 text-purple-500"
+                              : item.nft.rarity === "Rare"
+                              ? "border-green-500 text-green-500"
+                              : "border-blue-500 text-blue-500"
+                          }`}
+                        >
+                          {item.nft.rarity}
+                        </Badge>
+                      )}
+                      <div className="ml-auto">
+                        <Badge className="bg-primary/80 text-primary-foreground">
+                          {type}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="absolute bottom-2 right-2 flex gap-1">
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setItemToDelete(item);
+                          setIsDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Heart className="h-4 w-4 fill-primary text-primary" />
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Share2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  <CardContent className="p-4">
+                    <div>
+                      <h3 className="text-sm font-bold line-clamp-1">
+                        {data.name}
+                      </h3>
+                      {data.artist && (
+                        <p className="text-sm text-muted-foreground">
+                          {data.artist}
+                        </p>
+                      )}
+                      <div className="mt-2 flex items-center justify-between">
+                        <div className="text-sm">
+                          <span className="font-semibold">
+                            {item.collection
+                              ? item.collection.price
+                              : item.nft?.price ?? 0}{" "}
+                            {item.collection
+                              ? item.collection.currency?.code
+                              : item.nft?.currency?.code}{" "}
+                            {item.collection ? "Floor" : ""}
+                          </span>
+                        </div>
+                        {item.collection && (
+                          <div className="text-xs text-muted-foreground">
+                            {item.collection.minted}/{item.collection.supply}{" "}
+                            minted
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          <AlertDialog
+            open={isDeleteDialogOpen}
+            onOpenChange={setIsDeleteDialogOpen}
+          >
+            <AlertDialogContent className="w-[90vw] rounded">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Liked NFT</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel
+                  onClick={() => {
+                    setIsDeleteDialogOpen(false);
+                    setItemToDelete(null);
+                  }}
+                >
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={deleteItem}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
       ) : (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="flex flex-col items-center justify-center py-12 text-center mt-16 md:mt-28">
           <div className="mb-4 rounded-full bg-muted p-3">
             <Heart className="h-6 w-6 text-muted-foreground" />
           </div>
-          <h3 className="mb-2 text-lg font-medium">No liked NFTs found</h3>
+          <h3 className="mb-2 text-lg font-medium">No liked items found</h3>
           <p className="mb-6 text-muted-foreground">
             {filterValue || typeFilter !== "all"
               ? "Try adjusting your filters"
-              : "Start exploring the NFT marketplace to find NFTs you love"}
+              : "Start exploring the NFT marketplace to find NFTs or collections you love"}
           </p>
           <Button onClick={() => router.push("/nft-marketplace")}>
             Explore NFT Marketplace

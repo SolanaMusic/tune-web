@@ -29,7 +29,6 @@ import {
   Loader2,
   List,
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import {
   Pagination,
   PaginationContent,
@@ -39,37 +38,39 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { useUserStore } from "@/stores/UserStore";
 
 export function NFTCollectionsView() {
   const router = useRouter();
-  const { toast } = useToast();
+  const { user } = useUserStore();
   const [activeTab, setActiveTab] = useState("all");
   const [data, setData] = useState<any[]>([]);
   const [priceRange, setPriceRange] = useState([0, 10]);
   const [statusFilter, setStatusFilter] = useState("");
   const [verifiedFilter, setVerifiedFilter] = useState(false);
-  const [likedNFTs, setLikedNFTs] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const fetchNFTData = async (type: string) => {
+  const fetchNFTData = async (activeTab: string) => {
     try {
-      const params = type && type !== "all" ? { type } : {};
+      const params: any = {};
+
+      if (user?.id) {
+        params.userId = user.id;
+      }
+
+      if (activeTab !== "all") {
+        params.type = activeTab;
+      }
+
       const response = await axios.get(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/collections`,
         { params }
       );
-
       setData(response.data);
     } catch (error) {
       console.error("Error fetching NFT data:", error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch NFT data. Please try again later.",
-        variant: "destructive",
-        duration: 5000,
-      });
     }
   };
 
@@ -87,47 +88,34 @@ export function NFTCollectionsView() {
     );
   }
 
-  const handleNavigateToCollection = (collectionId: string) => {
-    router.push(`/nft-marketplace/collection/${collectionId}`);
-  };
+  const handleLike = async (collectionId: string, liked: boolean) => {
+    if (!user) return;
 
-  const handleLike = (itemType: string, itemId: string, itemName: string) => {
-    setLikedNFTs((prev) => ({
-      ...prev,
-      [`${itemType}-${itemId}`]: !prev[`${itemType}-${itemId}`],
-    }));
+    setData((prev) =>
+      prev.map((item) =>
+        item.id === collectionId ? { ...item, isLiked: !liked } : item
+      )
+    );
 
-    const isCurrentlyLiked = likedNFTs[`${itemType}-${itemId}`];
-    toast({
-      title: isCurrentlyLiked ? "Removed from Favorites" : "Added to Favorites",
-      description: `"${itemName}" has been ${
-        isCurrentlyLiked ? "removed from" : "added to"
-      } your favorites.`,
-      duration: 3000,
-    });
-  };
-
-  const handleShare = (itemId: string, itemName: string) => {
-    const shareUrl = `${window.location.origin}/nft-marketplace/collection/${itemId}`;
-
-    navigator.clipboard
-      .writeText(shareUrl)
-      .then(() => {
-        toast({
-          title: "Link Copied",
-          description: `Link to "${itemName}" has been copied to clipboard.`,
-          duration: 3000,
+    try {
+      if (!liked) {
+        await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/liked`, {
+          userId: user.id,
+          collectionId,
         });
-      })
-      .catch((err) => {
-        console.error("Failed to copy: ", err);
-        toast({
-          title: "Sharing Failed",
-          description: "Could not copy link to clipboard.",
-          variant: "destructive",
-          duration: 3000,
-        });
-      });
+      } else {
+        await axios.delete(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/liked/${collectionId}?type=collection`
+        );
+      }
+    } catch (error) {
+      console.error("Error toggling like:", error);
+      setData((prev) =>
+        prev.map((item) =>
+          item.id === collectionId ? { ...item, isLiked: liked } : item
+        )
+      );
+    }
   };
 
   const getCurrentItems = () => {
@@ -150,7 +138,7 @@ export function NFTCollectionsView() {
       <Card
         key={item.id}
         className="overflow-hidden transition-all hover:shadow-md cursor-pointer"
-        onClick={() => handleNavigateToCollection(item.id)}
+        onClick={() => router.push(`/nft-marketplace/collection/${item.id}`)}
       >
         <div className="relative">
           <img
@@ -158,6 +146,11 @@ export function NFTCollectionsView() {
             alt={item.name}
             className="aspect-square w-full object-cover"
           />
+          <div className="absolute top-2 right-2">
+            <Badge className="bg-primary/80 text-primary-foreground">
+              {item.associationType} Collection
+            </Badge>
+          </div>
           <div className="absolute bottom-2 right-2 flex gap-1">
             <Button
               variant="secondary"
@@ -165,14 +158,12 @@ export function NFTCollectionsView() {
               className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm"
               onClick={(e) => {
                 e.stopPropagation();
-                handleLike(activeTab, item.id, item.name);
+                handleLike(item.id, item.isLiked);
               }}
             >
               <Heart
                 className={`h-4 w-4 ${
-                  likedNFTs[`${activeTab}-${item.id}`]
-                    ? "fill-primary text-primary"
-                    : ""
+                  item.isLiked ? "fill-primary text-primary" : ""
                 }`}
               />
             </Button>
@@ -182,7 +173,6 @@ export function NFTCollectionsView() {
               className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm"
               onClick={(e) => {
                 e.stopPropagation();
-                handleShare(item.id, activeTab);
               }}
             >
               <Share2 className="h-4 w-4" />
@@ -357,21 +347,33 @@ export function NFTCollectionsView() {
             value={activeTab}
             onValueChange={handleTabChange}
           >
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="all" className="flex items-center gap-2">
-                <List className="h-4 w-4" />
+            <TabsList className="grid w-full grid-cols-4 gap-1 sm:gap-2">
+              <TabsTrigger
+                value="all"
+                className="flex items-center gap-1 sm:gap-2"
+              >
+                <List className="h-4 w-4 flex-none" />
                 All
               </TabsTrigger>
-              <TabsTrigger value="albums" className="flex items-center gap-2">
-                <Disc className="h-4 w-4" />
+              <TabsTrigger
+                value="albums"
+                className="flex items-center gap-1 sm:gap-2"
+              >
+                <Disc className="h-4 w-4 flex-none" />
                 Albums
               </TabsTrigger>
-              <TabsTrigger value="tracks" className="flex items-center gap-2">
-                <Music className="h-4 w-4" />
+              <TabsTrigger
+                value="tracks"
+                className="flex items-center gap-1 sm:gap-2"
+              >
+                <Music className="h-4 w-4 flex-none" />
                 Tracks
               </TabsTrigger>
-              <TabsTrigger value="artists" className="flex items-center gap-2">
-                <UserCircle className="h-4 w-4" />
+              <TabsTrigger
+                value="artists"
+                className="flex items-center gap-1 sm:gap-2"
+              >
+                <UserCircle className="h-4 w-4 flex-none" />
                 Artists
               </TabsTrigger>
             </TabsList>
@@ -390,7 +392,7 @@ export function NFTCollectionsView() {
                   </div>
                 </div>
               ) : (
-                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                <div className="grid gap-6 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                   {getCurrentItems().map(renderCardContent)}
                 </div>
               )}

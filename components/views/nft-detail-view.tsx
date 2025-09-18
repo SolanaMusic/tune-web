@@ -22,15 +22,14 @@ import {
   ClipboardPaste,
   Disc,
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import { useSolana } from "@/hooks/use-solana";
+import { useUserStore } from "@/stores/UserStore";
 
 export function NFTDetailView({ id }: { id: number }) {
   const router = useRouter();
-  const { toast } = useToast();
+  const { user } = useUserStore();
   const [nft, setNft] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLiked, setIsLiked] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { mintNft } = useSolana();
 
@@ -41,7 +40,10 @@ export function NFTDetailView({ id }: { id: number }) {
   const fetchNFTDetails = async () => {
     try {
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/${id}`
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/${id}`,
+        {
+          params: user?.id ? { userId: user.id } : {},
+        }
       );
       setNft(response.data);
     } catch (error) {
@@ -51,38 +53,26 @@ export function NFTDetailView({ id }: { id: number }) {
     }
   };
 
-  const handleLike = () => {
-    setIsLiked(!isLiked);
-    toast({
-      title: isLiked ? "Removed from Favorites" : "Added to Favorites",
-      description: `"${nft?.name}" has been ${
-        isLiked ? "removed from" : "added to"
-      } your favorites.`,
-      duration: 3000,
-    });
-  };
+  const handleLike = async (nftId: string, liked: boolean) => {
+    if (!user) return;
 
-  const handleShare = () => {
-    const shareUrl = `${window.location.origin}/nft-marketplace/nft/${id}`;
+    setNft((prev: any) => ({ ...prev, isLiked: !liked }));
 
-    navigator.clipboard
-      .writeText(shareUrl)
-      .then(() => {
-        toast({
-          title: "Link Copied",
-          description: `Link to "${nft?.name}" has been copied to clipboard.`,
-          duration: 3000,
+    try {
+      if (!liked) {
+        await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/liked`, {
+          userId: user.id,
+          nftId,
         });
-      })
-      .catch((err) => {
-        console.error("Failed to copy: ", err);
-        toast({
-          title: "Sharing Failed",
-          description: "Could not copy link to clipboard.",
-          variant: "destructive",
-          duration: 3000,
-        });
-      });
+      } else {
+        await axios.delete(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/liked/${nftId}?type=nft`
+        );
+      }
+    } catch (error) {
+      console.error("Error toggling like:", error);
+      setNft((prev: any) => ({ ...prev, isLiked: liked }));
+    }
   };
 
   const handlePurchase = async () => {
@@ -105,6 +95,11 @@ export function NFTDetailView({ id }: { id: number }) {
 
   const handleCopyAddress = () => {
     navigator.clipboard.writeText(nft.address);
+  };
+
+  const truncateAddress = (address: string, start = 6, end = 4) => {
+    if (!address) return "";
+    return `${address.slice(0, start)}...${address.slice(-end)}`;
   };
 
   if (isLoading) {
@@ -140,11 +135,11 @@ export function NFTDetailView({ id }: { id: number }) {
               variant="secondary"
               size="icon"
               className="h-10 w-10 rounded-full bg-background/80 backdrop-blur-sm"
-              onClick={handleLike}
+              onClick={() => handleLike(nft.id, nft.isLiked)}
             >
               <Heart
                 className={`h-5 w-5 ${
-                  isLiked ? "fill-primary text-primary" : ""
+                  nft.isLiked ? "fill-primary text-primary" : ""
                 }`}
               />
             </Button>
@@ -152,7 +147,6 @@ export function NFTDetailView({ id }: { id: number }) {
               variant="secondary"
               size="icon"
               className="h-10 w-10 rounded-full bg-background/80 backdrop-blur-sm"
-              onClick={handleShare}
             >
               <Share2 className="h-5 w-5" />
             </Button>
@@ -162,7 +156,20 @@ export function NFTDetailView({ id }: { id: number }) {
         <div className="space-y-6 md:col-span-8">
           <div>
             <div className="flex items-center gap-2">
-              <Badge className="bg-primary/80 text-primary-foreground">
+              <Badge
+                variant="outline"
+                className={`text-xs ${
+                  nft.rarity === "Legendary"
+                    ? "border-yellow-500 text-yellow-500"
+                    : nft.rarity === "Mythic"
+                    ? "border-red-500 text-red-500"
+                    : nft.rarity === "Epic"
+                    ? "border-purple-500 text-purple-500"
+                    : nft.rarity === "Rare"
+                    ? "border-green-500 text-green-500"
+                    : "border-blue-500 text-blue-500"
+                }`}
+              >
                 {nft.rarity}
               </Badge>
 
@@ -207,7 +214,11 @@ export function NFTDetailView({ id }: { id: number }) {
               className="gap-2"
               onClick={handleCopyAddress}
             >
-              <ClipboardPaste className="h-4 w-4" />#{nft.address}
+              <ClipboardPaste className="h-4 w-4" />
+              <span className="block sm:hidden">
+                #{truncateAddress(nft.address)}
+              </span>
+              <span className="hidden sm:block">#{nft.address}</span>
             </Button>
             <Button
               variant="outline"

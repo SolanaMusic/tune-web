@@ -35,7 +35,6 @@ import {
   CheckCircle2,
   Timer,
 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import {
   Pagination,
   PaginationContent,
@@ -47,16 +46,17 @@ import {
 } from "@/components/ui/pagination";
 import { MyWallet } from "../ui/mywallet";
 import { PurchaseModal } from "@/components/modals/nft-modal";
+import { useUserStore } from "@/stores/UserStore";
+import Link from "next/link";
 
 export function CollectionDetailView({ id }: { id: string }) {
   const router = useRouter();
-  const { toast } = useToast();
+  const { user } = useUserStore();
   const { mintNft } = useSolana();
   const [collection, setCollection] = useState<any | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [priceRange, setPriceRange] = useState([0, 10]);
   const [statusFilter, setStatusFilter] = useState("");
-  const [likedNFTs, setLikedNFTs] = useState<Record<string, boolean>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedNFT, setSelectedNFT] = useState<any | null>(null);
@@ -64,90 +64,66 @@ export function CollectionDetailView({ id }: { id: string }) {
 
   useEffect(() => {
     fetchCollectionData();
-  }, [id, toast]);
+  }, [id]);
 
   const fetchCollectionData = async () => {
     try {
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/collections/${id}`
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/collections/${id}`,
+        {
+          params: user?.id ? { userId: user.id } : {},
+        }
       );
       setCollection(response.data);
     } catch (error) {
       console.error("Failed to fetch collection data:", error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch collection data. Please try again later.",
-        variant: "destructive",
-      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLike = (nftId: string, nftName: string) => {
-    setLikedNFTs((prev) => ({
-      ...prev,
-      [nftId]: !prev[nftId],
-    }));
-
-    const isCurrentlyLiked = likedNFTs[nftId];
-    toast({
-      title: isCurrentlyLiked ? "Removed from Favorites" : "Added to Favorites",
-      description: `"${nftName}" has been ${
-        isCurrentlyLiked ? "removed from" : "added to"
-      } your favorites.`,
-      duration: 3000,
-    });
-  };
-
-  const handleCollectionShare = (itemName: string) => {
-    const shareUrl = `${window.location.origin}/nft-marketplace/collection/${collection.id}`;
-
-    navigator.clipboard
-      .writeText(shareUrl)
-      .then(() => {
-        toast({
-          title: "Link Copied",
-          description: `Link to "${itemName}" has been copied to clipboard.`,
-          duration: 3000,
-        });
-      })
-      .catch((err) => {
-        console.error("Failed to copy: ", err);
-        toast({
-          title: "Sharing Failed",
-          description: "Could not copy link to clipboard.",
-          variant: "destructive",
-          duration: 3000,
-        });
+  const toggleLikeRequest = async (
+    id: string,
+    type: "nft" | "collection",
+    liked: boolean
+  ) => {
+    if (!liked) {
+      await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/liked`, {
+        userId: user?.id,
+        ...(type === "nft" ? { nftId: id } : { collectionId: id }),
       });
+    } else {
+      await axios.delete(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/liked/${id}?type=${type}`
+      );
+    }
   };
 
-  const handleNftShare = (nftId: string, nftName: string) => {
-    const shareUrl = `${window.location.origin}/nft-marketplace/nft/${nftId}`;
+  const handleLike = async (id: string, type: "nft" | "collection") => {
+    if (!user) return;
 
-    navigator.clipboard
-      .writeText(shareUrl)
-      .then(() => {
-        toast({
-          title: "Link Copied",
-          description: `Link to "${nftName}" has been copied to clipboard.`,
-          duration: 3000,
-        });
-      })
-      .catch((err) => {
-        console.error("Failed to copy: ", err);
-        toast({
-          title: "Sharing Failed",
-          description: "Could not copy link to clipboard.",
-          variant: "destructive",
-          duration: 3000,
-        });
-      });
-  };
+    try {
+      if (type === "collection") {
+        const isLiked = collection.isLiked;
+        setCollection((prev: any) => ({ ...prev, isLiked: !isLiked }));
 
-  const handleNavigateToNFT = (nftId: string) => {
-    router.push(`/nft-marketplace/nft/${nftId}`);
+        await toggleLikeRequest(id, "collection", isLiked);
+      } else {
+        setCollection((prev: any) => ({
+          ...prev,
+          nfts: prev.nfts.map((nft: any) =>
+            nft.id === id ? { ...nft, isLiked: !nft.isLiked } : nft
+          ),
+        }));
+
+        const nft = collection.nfts.find((nft: any) => nft.id === id);
+        if (!nft) return;
+
+        await toggleLikeRequest(id, "nft", nft.isLiked);
+      }
+    } catch (error) {
+      console.error("Error toggling like:", error);
+    }
   };
 
   const handlePurchase = async () => {
@@ -242,15 +218,9 @@ export function CollectionDetailView({ id }: { id: string }) {
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold mb-1">{collection.name}</h1>
 
-            {(collection.album || collection.track || collection.artist) && (
-              <Badge className="bg-primary/80 text-primary-foreground">
-                {collection.album
-                  ? "Album"
-                  : collection.track
-                  ? "Track"
-                  : "Artist"}
-              </Badge>
-            )}
+            <Badge className="bg-primary/80 text-primary-foreground">
+              {collection.associationType}
+            </Badge>
           </div>
 
           <div className="mb-6 text-muted-foreground">
@@ -342,20 +312,15 @@ export function CollectionDetailView({ id }: { id: string }) {
             </Card>
             <div className="flex gap-4">
               <Button
-                variant="outline"
+                variant={collection.isLiked ? "default" : "outline"}
                 size="sm"
                 className="gap-2"
-                onClick={() => handleLike(collection.id, collection.name)}
+                onClick={() => handleLike(collection.id, "collection")}
               >
-                <Heart className="h-4 w-4" />
-                Add To Watchlist
+                <Heart />{" "}
+                {collection.isLiked ? "Added To Watchlist" : "Add To Watchlist"}
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={() => handleCollectionShare(collection.name)}
-              >
+              <Button variant="outline" size="sm" className="gap-2">
                 <Share2 className="h-4 w-4" />
                 Share Collection
               </Button>
@@ -497,12 +462,12 @@ export function CollectionDetailView({ id }: { id: string }) {
           <h2 className="text-2xl font-bold mb-6">NFTs in this Collection</h2>
 
           {getCurrentFilteredNFTs().length > 0 ? (
-            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            <div className="grid gap-6 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {getCurrentFilteredNFTs().map((nft) => (
                 <Card
                   key={nft.id}
                   className="overflow-hidden transition-all hover:shadow-md cursor-pointer"
-                  onClick={() => handleNavigateToNFT(nft.id)}
+                  onClick={() => router.push(`/nft-marketplace/nft/${nft.id}`)}
                 >
                   <div className="relative">
                     <img
@@ -538,12 +503,12 @@ export function CollectionDetailView({ id }: { id: string }) {
                         className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleLike(nft.id, nft.name);
+                          handleLike(nft.id, "nft");
                         }}
                       >
                         <Heart
                           className={`h-4 w-4 ${
-                            likedNFTs[nft.id] ? "fill-primary text-primary" : ""
+                            nft.isLiked ? "fill-primary text-primary" : ""
                           }`}
                         />
                       </Button>
@@ -553,7 +518,6 @@ export function CollectionDetailView({ id }: { id: string }) {
                         className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleNftShare(nft.id, nft.name);
                         }}
                       >
                         <Share2 className="h-4 w-4" />
@@ -562,12 +526,15 @@ export function CollectionDetailView({ id }: { id: string }) {
                   </div>
                   <CardContent className="p-4">
                     <h3 className="font-bold line-clamp-1">{nft.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {nft.artist}
-                    </p>
-                    {nft.album && (
+                    {collection.album && (
                       <p className="text-xs text-muted-foreground">
-                        From: {nft.album}
+                        From:{" "}
+                        <Link
+                          href={`/albums/${collection.album.id}`}
+                          className="hover:underline"
+                        >
+                          {collection.album.title}
+                        </Link>
                       </p>
                     )}
                     <div className="mt-2 flex items-center justify-between">

@@ -39,9 +39,9 @@ export function ArtistView({ id }: { id: number }) {
   const [isLiked, setIsLiked] = useState(false);
   const [showMoreTracks, setShowMoreTracks] = useState(false);
   const [artist, setArtist] = useState();
-  const [artists, setArtists] = useState([]);
-  const [nfts, setNfts] = useState([]);
-  const [playlists, setPlaylists] = useState([]);
+  const [artists, setArtists] = useState<any>([]);
+  const [nfts, setNfts] = useState<any>([]);
+  const [playlists, setPlaylists] = useState<any>([]);
   const [bgGradient, setBgGradient] = useState(
     "linear-gradient(to bottom, #000, #000)"
   );
@@ -93,7 +93,10 @@ export function ArtistView({ id }: { id: number }) {
         );
 
         const nftsResponse = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/artist-collections/${id}`
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/artist-collections/${id}`,
+          {
+            params: user?.id ? { userId: user.id } : {},
+          }
         );
 
         setNfts(nftsResponse.data);
@@ -244,6 +247,36 @@ export function ArtistView({ id }: { id: number }) {
         album.tracks.some((t) => t.id === trackId)
       ) || null
     );
+  };
+
+  const handleLike = async (collectionId: string, liked: boolean) => {
+    if (!user) return;
+
+    setNfts((prev) =>
+      prev.map((item) =>
+        item.id === collectionId ? { ...item, isLiked: !liked } : item
+      )
+    );
+
+    try {
+      if (!liked) {
+        await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/liked`, {
+          userId: user.id,
+          collectionId,
+        });
+      } else {
+        await axios.delete(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}nfts/liked/${collectionId}?type=collection`
+        );
+      }
+    } catch (error) {
+      console.error("Error toggling like:", error);
+      setNfts((prev) =>
+        prev.map((item) =>
+          item.id === collectionId ? { ...item, isLiked: liked } : item
+        )
+      );
+    }
   };
 
   const formatDuration = (duration: string) => {
@@ -948,8 +981,33 @@ export function ArtistView({ id }: { id: number }) {
                           />
                           <div className="absolute top-2 right-2">
                             <Badge className="bg-primary/80 text-primary-foreground">
-                              NFT
+                              {nft.associationType} Collection
                             </Badge>
+                          </div>
+                          <div className="absolute bottom-2 right-2 flex gap-1">
+                            <Button
+                              variant="secondary"
+                              size="icon"
+                              className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleLike(nft.id, nft.isLiked);
+                              }}
+                            >
+                              <Heart
+                                className={`h-5 w-5 ${
+                                  nft.isLiked ? "fill-primary text-primary" : ""
+                                }`}
+                              />
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              size="icon"
+                              className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Share2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
                         <CardContent className="p-4">
@@ -960,7 +1018,7 @@ export function ArtistView({ id }: { id: number }) {
                           <div className="mt-3 flex items-center justify-between">
                             <div className="flex items-center gap-1">
                               <span className="text-sm font-medium">
-                                {nft.price} {nft.currency.symbol}
+                                {nft.price} {nft.currency.symbol} Floor
                               </span>
                             </div>
                             <div className="text-xs text-muted-foreground">
