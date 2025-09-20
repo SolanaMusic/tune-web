@@ -3,6 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Login } from "@/components/auth/login";
+import { Register } from "@/components/auth/register";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function AuthPage() {
   return (
@@ -16,13 +18,32 @@ export function AuthPage() {
         </Link>
       </div>
 
-      <div className="flex flex-1 items-center justify-center p-2 md:p-4 mt-[-20px]">
+      <div className="flex flex-1 items-center justify-center p-2 md:p-4 mt-[-20px] px-4 sm:px-6 md:px-0 space-y-6">
         <div className="w-full max-w-md space-y-6">
-          <div className="space-y-2 text-center">
-            <h1 className="text-3xl font-bold">Welcome Back</h1>
-            <p className="text-muted-foreground">Sign in to continue to Tune</p>
-          </div>
-          <Login />
+          <Tabs defaultValue="login" className="w-full">
+            <div className="text-center mt-6">
+              <div className="space-y-1">
+                <h1 className="text-3xl font-bold leading-tight">Welcome</h1>
+                <p className="text-muted-foreground text-sm leading-snug">
+                  Access your account below
+                </p>
+              </div>
+
+              <div className="mt-6">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="login">Sign In</TabsTrigger>
+                  <TabsTrigger value="register">Sign Up</TabsTrigger>
+                </TabsList>
+              </div>
+            </div>
+
+            <TabsContent value="login">
+              <Login />
+            </TabsContent>
+            <TabsContent value="register">
+              <Register />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
 

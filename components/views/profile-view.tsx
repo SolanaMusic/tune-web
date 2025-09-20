@@ -18,7 +18,18 @@ import {
   ListMusic,
   Loader2,
   Receipt,
+  SquarePen,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useRouter } from "next/navigation";
 import { useUserStore } from "@/stores/UserStore";
@@ -40,11 +51,14 @@ import { clusterApiUrl } from "@solana/web3.js";
 export function ProfileView() {
   const [activeTab, setActiveTab] = useState("overview");
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [profile, setProfile] = useState<any[]>([]);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [recentlyPlayed, setRecentlyPlayed] = useState<any[]>([]);
+  const [userToUpdate, setUserToUpdate] = useState<any>();
   const router = useRouter();
-  const { user, logout } = useUserStore();
+  const { user, setUser, logout } = useUserStore();
 
   const network = WalletAdapterNetwork.Devnet;
   const endpoint = useMemo(() => clusterApiUrl(network), [network]);
@@ -106,6 +120,71 @@ export function ProfileView() {
     if (disconnectBtn) disconnectBtn.click();
 
     router.push("/");
+  };
+
+  const deleteUser = async () => {
+    try {
+      await axios.delete(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}users/${user?.id}`
+      );
+
+      setIsDeleteDialogOpen(false);
+      handleLogout();
+    } catch (error) {
+      console.error("Failed to delete user", error);
+    }
+  };
+
+  const updateUser = async () => {
+    try {
+      const formData = new FormData();
+
+      if (userToUpdate.username)
+        formData.append("UserName", userToUpdate.username);
+      if (userToUpdate.avatar) {
+        formData.append("Avatar", userToUpdate.avatar);
+      }
+
+      setIsSaving(true);
+      const response = await axios.patch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}users/${user?.id}`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
+      setProfile(response.data);
+      setIsSaving(false);
+      setUserToUpdate(null);
+
+      if (user) {
+        setUser({
+          id: user.id,
+          role: user.role,
+          tokensAmount: user.tokensAmount,
+          token: user.token,
+          avatar: getAvatarUrl(response.data.profile.avatarUrl),
+          name: response.data.userName,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to update user", error);
+    }
+  };
+
+  const getAvatarUrl = (avatarUrl: string) => {
+    if (!avatarUrl) return "/placeholder.svg";
+
+    return avatarUrl.startsWith("http")
+      ? avatarUrl
+      : `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${avatarUrl}`;
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUserToUpdate((prev) => ({ ...prev, avatar: file }));
+    }
   };
 
   function timeAgo(dateString: string) {
@@ -170,23 +249,41 @@ export function ProfileView() {
           <div className="flex flex-col md:flex-row gap-8">
             <div className="w-full md:w-64 space-y-6">
               <div className="flex flex-col items-center text-center p-6 bg-card rounded-lg border">
-                <Avatar className="h-20 w-20">
-                  <AvatarImage
-                    src={
-                      `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${profile.profile.avatarUrl}` ||
-                      "/placeholder.svg"
-                    }
-                    alt={profile.userName}
-                  />
-                  <AvatarFallback className="bg-primary/20 text-primary text-2xl">
-                    {getUserInitials()}
-                  </AvatarFallback>
-                </Avatar>
-                <h2 className="text-xl font-bold">{user?.name}</h2>
-                <p className="text-sm text-muted-foreground mb-2">
-                  @{profile.userName}
-                </p>
-                <div className="flex justify-center gap-4 text-sm">
+                <div className="relative inline-block">
+                  <Avatar className="h-20 w-20 cursor-pointer">
+                    <AvatarImage
+                      src={
+                        userToUpdate?.avatar
+                          ? URL.createObjectURL(userToUpdate.avatar)
+                          : getAvatarUrl(profile.profile.avatarUrl)
+                      }
+                      alt={profile.userName}
+                    />
+                    <AvatarFallback className="bg-primary/20 text-primary text-2xl">
+                      {getUserInitials()}
+                    </AvatarFallback>
+                  </Avatar>
+
+                  {activeTab === "settings" && (
+                    <>
+                      <label
+                        htmlFor="avatar-upload"
+                        className="absolute bottom-0 right-0 bg-primary text-white p-1.5 rounded-full cursor-pointer flex items-center justify-center"
+                      >
+                        <SquarePen className="w-4 h-4" />
+                      </label>
+                      <input
+                        id="avatar-upload"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleFileChange}
+                      />
+                    </>
+                  )}
+                </div>
+                <h2 className="text-xl font-bold mt-2">{profile.userName}</h2>
+                <div className="flex justify-center gap-4 text-sm mt-2">
                   <span className="font-bold">{profile.following}</span>{" "}
                   Following
                 </div>
@@ -194,6 +291,7 @@ export function ProfileView() {
                   variant="outline"
                   size="sm"
                   className="mt-4 w-full"
+                  disabled={activeTab === "settings"}
                   onClick={() => setActiveTab("settings")}
                 >
                   <Edit className="mr-2 h-4 w-4" /> Edit Profile
@@ -622,6 +720,12 @@ export function ProfileView() {
                               <Input
                                 id="username"
                                 defaultValue={profile.userName}
+                                onChange={(e) =>
+                                  setUserToUpdate((prev: any) => ({
+                                    ...prev,
+                                    username: e.target.value,
+                                  }))
+                                }
                               />
                             </div>
                             <div className="space-y-2">
@@ -630,14 +734,31 @@ export function ProfileView() {
                                 id="email"
                                 type="email"
                                 defaultValue={profile.email}
+                                disabled={true}
                               />
                             </div>
                           </div>
-                          <Button className="mt-4">Save Changes</Button>
+                          <Button
+                            className="mt-4"
+                            onClick={updateUser}
+                            disabled={
+                              isSaving ||
+                              (!userToUpdate?.avatar &&
+                                (!userToUpdate?.username ||
+                                  userToUpdate?.username === profile.userName))
+                            }
+                          >
+                            {isSaving ? (
+                              <>
+                                <Loader2 className="animate-spin" />
+                                Saving...
+                              </>
+                            ) : (
+                              "Save Changes"
+                            )}
+                          </Button>
                         </div>
-
                         <Separator />
-
                         <div>
                           <h3 className="font-semibold mb-4">Notifications</h3>
                           <div className="space-y-4">
@@ -721,9 +842,38 @@ export function ProfileView() {
                             </div>
                           </div>
                         </div>
-
                         <Separator />
-
+                        <AlertDialog
+                          open={isDeleteDialogOpen}
+                          onOpenChange={setIsDeleteDialogOpen}
+                        >
+                          <AlertDialogContent className="w-[90vw] rounded">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Delete Account
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {`Are you sure you want to delete your account ${user?.name}?`}
+                                <p>This action cannot be undone</p>
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel
+                                onClick={() => {
+                                  setIsDeleteDialogOpen(false);
+                                }}
+                              >
+                                Cancel
+                              </AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={deleteUser}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                         <div>
                           <h3 className="font-semibold mb-4 text-destructive">
                             Danger Zone
@@ -739,7 +889,11 @@ export function ProfileView() {
                                   data
                                 </div>
                               </div>
-                              <Button variant="destructive" size="sm">
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => setIsDeleteDialogOpen(true)}
+                              >
                                 Delete Account
                               </Button>
                             </div>

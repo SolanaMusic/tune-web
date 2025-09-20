@@ -3,6 +3,7 @@
 import { Loader2 } from "lucide-react";
 import { create } from "zustand";
 import { useEffect, useState, ReactNode } from "react";
+import axios from "axios";
 
 type User = {
   id: number;
@@ -37,20 +38,46 @@ export const useUserStore = create<UserState>((set) => ({
 }));
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
-  const setUser = useUserStore((state) => state.setUser);
+  const { user, setUser } = useUserStore();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const saved = localStorage.getItem("user");
+
     if (saved) {
       try {
-        setUser(JSON.parse(saved));
+        const parsedUser: User = JSON.parse(saved);
+        setUser(parsedUser);
+
+        axios
+          .get(`${process.env.NEXT_PUBLIC_API_BASE_URL}users/${parsedUser.id}`)
+          .then((res) => {
+            const updatedUser: User = {
+              ...parsedUser,
+              name: res.data.userName,
+              avatar: getAvatarUrl(res.data.profile.avatarUrl),
+              tokensAmount: res.data.profile.tokensAmount,
+            };
+            setUser(updatedUser);
+          })
+          .catch((err) => {
+            console.error("Failed to fetch user:", err);
+          });
       } catch {
         localStorage.removeItem("user");
       }
     }
+
     setLoading(false);
   }, [setUser]);
+
+  const getAvatarUrl = (avatarUrl: string) => {
+    if (!avatarUrl) return "/placeholder.svg";
+
+    return avatarUrl.startsWith("http")
+      ? avatarUrl
+      : `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${avatarUrl}`;
+  };
 
   if (loading)
     return (

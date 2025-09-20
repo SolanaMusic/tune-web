@@ -331,7 +331,7 @@ export function ArtistView({ id }: { id: number }) {
                   listens
                 </span>
               </div>
-              <div className="mt-4 flex flex-wrap items-center gap-3">
+              <div className="mt-4 flex items-center gap-2 flex-nowrap overflow-x-auto">
                 <Button className="rounded-full" onClick={handlePlayPopular}>
                   {isPlaying &&
                   artist.tracks.some((t) => t.id === currentTrack?.id) ? (
