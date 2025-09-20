@@ -125,7 +125,7 @@ export function ArtistNFTCollectionsView({ id }: { id: string }) {
                 />
               </div>
               <CardContent className="p-5 flex flex-col justify-between flex-grow">
-                <h3 className="font-semibold text-lg mb-2">
+                <h3 className="font-semibold text-lg mb-1">
                   {collection.name}
                 </h3>
 
@@ -169,14 +169,14 @@ export function ArtistNFTCollectionsView({ id }: { id: string }) {
                   <div>
                     <p className="text-muted-foreground">Price</p>
                     <p className="font-medium text-base">
-                      {collection.price} {collection.currency.code}
+                      {collection.price} {collection.currency.code} Floor
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-muted-foreground">Supply</p>
                     <Badge
                       variant="secondary"
-                      className="flex items-center gap-1 inline-block text-sm"
+                      className="flex items-center gap-1 inline-block text-xs"
                     >
                       {collection.minted}/{collection.supply}
                     </Badge>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   Home,
@@ -37,8 +37,16 @@ export function Sidebar() {
     { id: "8", name: "Morning Coffee" },
   ];
 
-  const isActive = (path: string) => {
-    return pathname === path;
+  const getVariant = (path: string, isCreateButton = false) => {
+    if (isCreateContentOpen) {
+      return isCreateButton ? "default" : "ghost";
+    }
+
+    if (path === "/") {
+      return pathname === "/" ? "default" : "ghost";
+    }
+
+    return pathname.startsWith(path) ? "default" : "ghost";
   };
 
   return (
@@ -50,62 +58,60 @@ export function Sidebar() {
       }}
     >
       <div className="flex h-full flex-col">
-        <div className="p-4">
-          <div className="space-y-1">
-            <Button
-              variant={isActive("/") ? "default" : "ghost"}
-              className="w-full justify-start"
-              asChild
-            >
-              <Link href="/">
-                <Home className="mr-2 h-5 w-5" />
-                Home
-              </Link>
-            </Button>
-            <Button
-              variant={isActive("/explore") ? "default" : "ghost"}
-              className="w-full justify-start"
-              asChild
-            >
-              <Link href="/explore">
-                <Compass className="mr-2 h-5 w-5" />
-                Explore
-              </Link>
-            </Button>
-            <Button
-              variant={isActive("/library") ? "default" : "ghost"}
-              className="w-full justify-start"
-              asChild
-            >
-              <Link href="/library">
-                <Library className="mr-2 h-5 w-5" />
-                Library
-              </Link>
-            </Button>
-            <Button
-              variant={isActive("/nft-marketplace") ? "default" : "ghost"}
-              className="w-full justify-start"
-              asChild
-            >
-              <Link href="/nft-marketplace">
-                <ShoppingBag className="mr-2 h-5 w-5" />
-                NFT Market
-              </Link>
-            </Button>
-            <Button
-              variant={isActive("/subscriptions") ? "default" : "ghost"}
-              className="w-full justify-start"
-              asChild
-            >
-              <Link href="/subscriptions">
-                <Users className="mr-2 h-5 w-5" />
-                Subscription
-              </Link>
-            </Button>
-          </div>
+        <div className="p-4 space-y-1">
+          <Button
+            variant={getVariant("/", false)}
+            className="w-full justify-start"
+            asChild
+          >
+            <Link href="/">
+              <Home className="mr-2 h-5 w-5" />
+              Home
+            </Link>
+          </Button>
+          <Button
+            variant={getVariant("/explore", false)}
+            className="w-full justify-start"
+            asChild
+          >
+            <Link href="/explore">
+              <Compass className="mr-2 h-5 w-5" />
+              Explore
+            </Link>
+          </Button>
+          <Button
+            variant={getVariant("/library", false)}
+            className="w-full justify-start"
+            asChild
+          >
+            <Link href="/library">
+              <Library className="mr-2 h-5 w-5" />
+              Library
+            </Link>
+          </Button>
+          <Button
+            variant={getVariant("/nft-marketplace", false)}
+            className="w-full justify-start"
+            asChild
+          >
+            <Link href="/nft-marketplace">
+              <ShoppingBag className="mr-2 h-5 w-5" />
+              NFT Market
+            </Link>
+          </Button>
+          <Button
+            variant={getVariant("/subscriptions", false)}
+            className="w-full justify-start"
+            asChild
+          >
+            <Link href="/subscriptions">
+              <Users className="mr-2 h-5 w-5" />
+              Subscription
+            </Link>
+          </Button>
         </div>
 
-        {user && user?.role !== "User" && (
+        {user && user.role !== "User" && (
           <div className="px-4 py-2">
             <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground">
               <Hammer className="h-4 w-4" />
@@ -113,11 +119,7 @@ export function Sidebar() {
             </div>
             <div className="mt-2 space-y-1">
               <Button
-                variant={
-                  pathname.startsWith("/artist-nft-collections")
-                    ? "default"
-                    : "ghost"
-                }
+                variant={getVariant("/artist-nft-collections", false)}
                 className="w-full justify-start"
                 asChild
               >
@@ -131,7 +133,10 @@ export function Sidebar() {
                 open={isCreateContentOpen}
                 onOpenChange={setIsCreateContentOpen}
               >
-                <Button variant="ghost" className="w-full justify-start">
+                <Button
+                  variant={getVariant("/create-content", true)}
+                  className="w-full justify-start"
+                >
                   <FilePlus className="mr-2 h-4 w-4" />
                   Create Content
                 </Button>
@@ -141,28 +146,13 @@ export function Sidebar() {
         )}
 
         <div className="px-4 py-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground">
-              <ListMusic className="h-4 w-4" />
-              <span>Your Library</span>
-            </div>
+          <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground">
+            <ListMusic className="h-4 w-4" />
+            <span>Your Library</span>
           </div>
-        </div>
-
-        <ScrollArea className="flex-1 px-2">
-          <div className="space-y-1 p-2">
+          <div className="mt-2 space-y-1">
             <Button
-              variant={pathname === "/playlists/liked" ? "default" : "ghost"}
-              className="w-full justify-start"
-              asChild
-            >
-              <Link href="/playlists/liked">
-                <Heart className="mr-2 h-4 w-4" />
-                Liked Songs
-              </Link>
-            </Button>
-            <Button
-              variant={pathname === "/liked-nfts" ? "default" : "ghost"}
+              variant={getVariant("/liked-nfts", false)}
               className="w-full justify-start"
               asChild
             >
@@ -173,7 +163,7 @@ export function Sidebar() {
             </Button>
 
             <Button
-              variant={pathname === "/playlists" ? "default" : "ghost"}
+              variant={getVariant("/playlists", false)}
               className="w-full justify-start"
               asChild
             >
@@ -188,11 +178,7 @@ export function Sidebar() {
                 {playlists.map((playlist) => (
                   <Button
                     key={playlist.id}
-                    variant={
-                      pathname === `/playlists/${playlist.id}`
-                        ? "default"
-                        : "ghost"
-                    }
+                    variant={getVariant(`/playlists/${playlist.id}`, false)}
                     className="w-full justify-start text-sm font-normal"
                     asChild
                   >
@@ -204,7 +190,7 @@ export function Sidebar() {
               </CollapsibleContent>
             </Collapsible>
           </div>
-        </ScrollArea>
+        </div>
       </div>
     </aside>
   );

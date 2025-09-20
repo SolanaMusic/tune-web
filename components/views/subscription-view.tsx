@@ -72,20 +72,38 @@ export function SubscriptionView() {
 
   const connectToBinanceSocket = () => {
     const socket = new WebSocket(
-      `${process.env.NEXT_PUBLIC_BINANCE_WS_URL}solusdt@trade`
+      `${process.env.NEXT_PUBLIC_BINANCE_WS_URL}/solusdt@trade`
     );
+
+    let latestPrice = 0;
+    let intervalId: NodeJS.Timeout;
+    let isFirstUpdate = true;
+
+    socket.onopen = () => {
+      intervalId = setInterval(() => {
+        if (latestPrice > 0) {
+          setSolPrice(latestPrice);
+        }
+      }, 10_000);
+    };
 
     socket.onmessage = (event) => {
       const message = JSON.parse(event.data);
-      const price = parseFloat(message.p);
-      setSolPrice(price);
+      latestPrice = parseFloat(message.p);
+
+      if (isFirstUpdate) {
+        setSolPrice(latestPrice);
+        isFirstUpdate = false;
+      }
     };
 
     socket.onclose = () => {
+      clearInterval(intervalId);
       setTimeout(connectToBinanceSocket, 5000);
     };
 
     socket.onerror = () => {
+      clearInterval(intervalId);
       socket.close();
     };
   };

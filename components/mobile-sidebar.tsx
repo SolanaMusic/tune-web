@@ -144,12 +144,6 @@ export function MobileSidebar() {
         <ScrollArea className="flex-1 px-2">
           <div className="space-y-1 p-2">
             <NavButton
-              href="/playlists/liked"
-              icon={<Heart />}
-              label="Liked Songs"
-              isActive={isActive}
-            />
-            <NavButton
               href="/liked-nfts"
               icon={<Heart />}
               label="Liked NFTs"

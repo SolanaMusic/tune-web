@@ -54,6 +54,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           .then((res) => {
             const updatedUser: User = {
               ...parsedUser,
+              role: res.data.role,
               name: res.data.userName,
               avatar: getAvatarUrl(res.data.profile.avatarUrl),
               tokensAmount: res.data.profile.tokensAmount,

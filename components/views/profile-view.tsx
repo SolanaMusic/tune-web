@@ -141,9 +141,8 @@ export function ProfileView() {
 
       if (userToUpdate.username)
         formData.append("UserName", userToUpdate.username);
-      if (userToUpdate.avatar) {
-        formData.append("Avatar", userToUpdate.avatar);
-      }
+      if (userToUpdate.avatar) formData.append("Avatar", userToUpdate.avatar);
+      if (user?.role === "Artist") formData.append("Role", user.role);
 
       setIsSaving(true);
       const response = await axios.patch(
