@@ -1,7 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -18,7 +24,12 @@ import {
   ListMusic,
   Loader2,
   Receipt,
-  SquarePen,
+  Camera,
+  Award,
+  Upload,
+  AlertCircle,
+  Globe,
+  RefreshCcw,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -47,16 +58,34 @@ import {
 } from "@solana/wallet-adapter-react";
 import { WalletDisconnectButton } from "@solana/wallet-adapter-react-ui";
 import { clusterApiUrl } from "@solana/web3.js";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../ui/dialog";
+import { Progress } from "../ui/progress";
+import Link from "next/link";
 
 export function ProfileView() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [profile, setProfile] = useState<any[]>([]);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [isArtistApplicationOpen, setIsArtistApplicationOpen] = useState(false);
+  const [profile, setProfile] = useState<any>();
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [recentlyPlayed, setRecentlyPlayed] = useState<any[]>([]);
   const [userToUpdate, setUserToUpdate] = useState<any>();
+  const [website, setWebsite] = useState("");
+  const [contacts, setContacts] = useState("");
+  const [errors, setErrors] = useState<{ website?: string; contacts?: string }>(
+    {}
+  );
   const router = useRouter();
   const { user, setUser, logout } = useUserStore();
 
@@ -186,6 +215,103 @@ export function ProfileView() {
     }
   };
 
+  const openFileDialog = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const validate = () => {
+    const newErrors: typeof errors = {};
+
+    if (!website.trim()) {
+      newErrors.website = "Website is required.";
+    } else if (!/^https?:\/\/.+/i.test(website)) {
+      newErrors.website = "Website must start with http:// or https://";
+    }
+
+    if (!contacts.trim()) {
+      newErrors.contacts = "Contact link is required.";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async () => {
+    if (!validate()) return;
+
+    try {
+      var response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}artists/applications`,
+        {
+          userId: user?.id,
+          resourceUrl: website,
+          contactLink: contacts,
+        }
+      );
+
+      setProfile((prev) => ({
+        ...prev,
+        artistApplication: response.data,
+      }));
+
+      setIsArtistApplicationOpen(false);
+      setWebsite("");
+      setContacts("");
+      setErrors({});
+    } catch (error) {
+      console.error("Failed to submit application:", error);
+    }
+  };
+
+  const cancelApplication = async () => {
+    try {
+      await axios.delete(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}artists/applications/${profile.artistApplication.id}`
+      );
+
+      setProfile((prev) => ({
+        ...prev,
+        artistApplication: null,
+      }));
+    } catch (error) {
+      console.error("Failed to cancel application:", error);
+    }
+  };
+
+  const handleArtistApplicationOpen = () => {
+    setIsArtistApplicationOpen(!isArtistApplicationOpen);
+    setErrors({});
+  };
+
+  const getReviewStageColor = (status: string) => {
+    switch (status) {
+      case "Pending":
+        return "bg-blue-500/20 text-blue-500";
+      case "Approved":
+        return "bg-green-500/20 text-green-500";
+      case "Rejected":
+        return "bg-red-500/20 text-red-500";
+      case "Unknown":
+      default:
+        return "bg-gray-500/20 text-gray-500";
+    }
+  };
+
+  function formatDate(dateString: string | Date | undefined | null) {
+    if (!dateString) return "";
+
+    return new Date(dateString).toLocaleString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  }
+
   function timeAgo(dateString: string) {
     const date = new Date(dateString);
     const now = new Date();
@@ -249,7 +375,7 @@ export function ProfileView() {
             <div className="w-full md:w-64 space-y-6">
               <div className="flex flex-col items-center text-center p-6 bg-card rounded-lg border">
                 <div className="relative inline-block">
-                  <Avatar className="h-20 w-20 cursor-pointer">
+                  <Avatar className="h-28 w-28">
                     <AvatarImage
                       src={
                         userToUpdate?.avatar
@@ -265,14 +391,18 @@ export function ProfileView() {
 
                   {activeTab === "settings" && (
                     <>
-                      <label
-                        htmlFor="avatar-upload"
-                        className="absolute bottom-0 right-0 bg-primary text-white p-1.5 rounded-full cursor-pointer flex items-center justify-center"
+                      <Button
+                        size="icon"
+                        variant="secondary"
+                        className="absolute bottom-0 right-0 h-8 w-8 rounded-full"
+                        type="button"
+                        onClick={openFileDialog}
                       >
-                        <SquarePen className="w-4 h-4" />
-                      </label>
+                        <Camera className="h-4 w-4" />
+                      </Button>
+
                       <input
-                        id="avatar-upload"
+                        ref={fileInputRef}
                         type="file"
                         accept="image/*"
                         className="hidden"
@@ -281,9 +411,12 @@ export function ProfileView() {
                     </>
                   )}
                 </div>
-                <h2 className="text-xl font-bold mt-2">{profile.userName}</h2>
-                <div className="flex justify-center gap-4 text-sm mt-2">
-                  <span className="font-bold">{profile.following}</span>{" "}
+                <h2 className="text-xl font-bold mt-2">
+                  {profile.artistName || profile.userName}
+                </h2>
+                <div className="text-sm mt-2">
+                  <span className="font-bold">{profile.following}</span>
+                  {"  "}
                   Following
                 </div>
                 <Button
@@ -489,6 +622,237 @@ export function ProfileView() {
                       </div>
                     </div>
                   </div>
+
+                  {user?.role !== "Artist" &&
+                    !profile.artist &&
+                    !profile.artistApplication && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Award className="h-5 w-5" />
+                            Become an Artist
+                          </CardTitle>
+                          <CardDescription>
+                            Apply to become a verified artist on our platform
+                            and unlock exclusive features.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <Dialog
+                            open={isArtistApplicationOpen}
+                            onOpenChange={handleArtistApplicationOpen}
+                          >
+                            <DialogTrigger asChild>
+                              <Button>
+                                <Upload className="mr-2 h-4 w-4" />
+                                Apply as Artist
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                              <DialogHeader>
+                                <DialogTitle>Artist Application</DialogTitle>
+                                <CardDescription>
+                                  Please provide your website and contact
+                                  details to complete the application.
+                                </CardDescription>
+                              </DialogHeader>
+                              <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="website">Website</Label>
+                                  <Input
+                                    id="website"
+                                    value={website}
+                                    placeholder="https://yourwebsite.com"
+                                    onChange={(e) => setWebsite(e.target.value)}
+                                  />
+                                  {errors.website && (
+                                    <p className="text-sm text-red-500">
+                                      {errors.website}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="contacts">Contact Link</Label>
+                                  <Input
+                                    id="contacts"
+                                    value={contacts}
+                                    placeholder="https://linktr.ee/yourname or https://instagram.com/yourname"
+                                    onChange={(e) =>
+                                      setContacts(e.target.value)
+                                    }
+                                  />
+                                  {errors.contacts && (
+                                    <p className="text-sm text-red-500">
+                                      {errors.contacts}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <DialogFooter>
+                                <Button
+                                  variant="outline"
+                                  onClick={handleArtistApplicationOpen}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button onClick={handleSubmit}>Submit</Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                  {user?.role !== "Artist" &&
+                    !profile.artist &&
+                    profile.artistApplication && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <RefreshCcw className="h-6 w-6 text-yellow-500 animate-spin" />
+                            Artist Application Review
+                          </CardTitle>
+                          <CardDescription>
+                            Application ID: {profile.artistApplication.id} •
+                            Submitted on{" "}
+                            {formatDate(profile.artistApplication?.createdDate)}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">
+                                  Review Progress
+                                </span>
+                                <Badge
+                                  variant="outline"
+                                  className={getReviewStageColor(
+                                    profile.artistApplication.status
+                                  )}
+                                >
+                                  {profile.artistApplication.status}
+                                </Badge>
+                              </div>
+                              <span className="text-sm text-muted-foreground">
+                                {profile.artistApplication.status === "Pending"
+                                  ? 50
+                                  : 100}
+                                %
+                              </span>
+                            </div>
+                            <Progress
+                              value={
+                                profile.artistApplication.status === "Pending"
+                                  ? 50
+                                  : 100
+                              }
+                              className="h-2"
+                            />
+                            <p className="text-sm text-muted-foreground">
+                              Estimated completion: 3-5 business days
+                            </p>
+                          </div>
+                          <Separator />
+                          <div className="space-y-4">
+                            {profile.artistApplication.resourceUrl && (
+                              <div className="space-y-2">
+                                <Label className="text-sm font-medium">
+                                  Website
+                                </Label>
+                                <div className="flex items-center gap-2">
+                                  <Globe className="h-4 w-4 text-muted-foreground" />
+                                  <Link
+                                    href={profile.artistApplication.resourceUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-primary hover:underline"
+                                  >
+                                    {profile.artistApplication.resourceUrl}
+                                  </Link>
+                                </div>
+                              </div>
+                            )}
+                            {profile.artistApplication.contactLink && (
+                              <div className="space-y-2">
+                                <Label className="text-sm font-medium">
+                                  Contacts
+                                </Label>
+                                <div className="flex items-center gap-2">
+                                  <Globe className="h-4 w-4 text-muted-foreground" />
+                                  <Link
+                                    href={profile.artistApplication.contactLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-primary hover:underline"
+                                  >
+                                    {profile.artistApplication.contactLink}
+                                  </Link>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          <Separator />
+                          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+                            <div className="flex items-center gap-3">
+                              <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-500 flex-shrink-0" />
+                              <div className="space-y-1">
+                                <p className="text-sm font-medium">
+                                  What happens next?
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  Our team is currently reviewing your
+                                  application. We'll verify your information,
+                                  check your portfolio, and assess your
+                                  eligibility for artist verification.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {profile.artistApplication.status !== "Approved" && (
+                            <div className="flex justify-end">
+                              <Button
+                                variant="destructive"
+                                onClick={() => setIsCancelDialogOpen(true)}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
+
+                  <AlertDialog
+                    open={isCancelDialogOpen}
+                    onOpenChange={setIsCancelDialogOpen}
+                  >
+                    <AlertDialogContent className="w-[90vw] rounded">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Cancel Application</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {`Are you sure you want to cancel your application?`}
+                          <p>This action cannot be undone</p>
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel
+                          onClick={() => {
+                            setIsCancelDialogOpen(false);
+                          }}
+                        >
+                          Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={cancelApplication}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
 
                   {recentlyPlayed.length > 0 && (
                     <div className="bg-card rounded-lg border p-6">

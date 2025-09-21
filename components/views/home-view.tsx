@@ -79,8 +79,9 @@ export function HomeView() {
               <div className="overflow-hidden rounded-full aspect-square">
                 <img
                   src={
-                    `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${artist.imageUrl}` ||
-                    "/placeholder.svg"
+                    artist.imageUrl
+                      ? `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${artist.imageUrl}`
+                      : "/placeholder.svg"
                   }
                   alt={artist.name}
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"

@@ -31,18 +31,11 @@ import {
 } from "@/components/ui/pagination";
 import {
   DownloadIcon,
-  MusicIcon,
-  UsersIcon,
-  BarChart3Icon,
-  TrendingUpIcon,
-  CoinsIcon,
   SearchIcon,
   ArrowUpIcon,
   ArrowDownIcon,
   ArrowUpDownIcon,
-  UserIcon,
 } from "lucide-react";
-import { LineChart, BarChart, PieChart } from "@/components/ui/chart";
 import {
   Table,
   TableBody,
@@ -58,9 +51,42 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useRef } from "react";
+import { Reports } from "../dashboard/reports";
+import { Overview } from "../dashboard/overview";
+import { ArtistApplications } from "../dashboard/artist-applications";
+import axios from "axios";
+
+interface DashboardFilter {
+  query: string;
+  timeFilter: "Today" | "Week" | "Month" | "Year" | "AllTime";
+  pageNumber: number;
+  totalPages: number;
+  pageSize: number;
+}
+
+export interface DashboardSorting {
+  sortColumn: string;
+  sortDirection: "Asc" | "Desc";
+}
+
+export interface ArtistApplicationsFilter extends DashboardFilter {
+  status: "Pending" | "Approved" | "Rejected" | "All";
+}
+
+export const fetchPendingApplications = async () => {
+  try {
+    var response = await axios.get(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}dashboard/active-applications`
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching active applications:", error);
+  }
+};
 
 export function AdminDashboardView() {
   const [activeTab, setActiveTab] = useState("overview");
+  const [activeApplications, setActiveApplications] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
@@ -69,6 +95,27 @@ export function AdminDashboardView() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
   const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const [applicationsSorting, setApplicationsSorting] =
+    useState<DashboardSorting>({ sortColumn: "", sortDirection: "Asc" });
+  const [applicationsFilter, setApplicationsFilter] =
+    useState<ArtistApplicationsFilter>({
+      query: "",
+      timeFilter: "AllTime",
+      pageNumber: 1,
+      totalPages: 1,
+      pageSize: 10,
+      status: "All",
+    });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const response = await fetchPendingApplications();
+      setActiveApplications(response);
+    };
+
+    fetchData();
+  }, []);
 
   const users = Array.from({ length: 100 }, (_, i) => ({
     id: `u${i + 1}`,
@@ -214,20 +261,31 @@ export function AdminDashboardView() {
     });
   };
 
-  const handleSort = (column: string) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortColumn(column);
-      setSortDirection("asc");
-    }
+  const handleSort = (
+    column: string,
+    sorting: DashboardSorting,
+    setSorting: React.Dispatch<React.SetStateAction<DashboardSorting>>
+  ) => {
+    setSorting((prev) => {
+      if (prev.sortColumn === column) {
+        return {
+          ...prev,
+          sortDirection: prev.sortDirection === "Asc" ? "Desc" : "Asc",
+        };
+      } else {
+        return {
+          sortColumn: column,
+          sortDirection: "Asc",
+        };
+      }
+    });
   };
 
-  const getSortIcon = (column: string) => {
-    if (sortColumn !== column) {
+  const getSortIcon = (sorting: DashboardSorting, column: string) => {
+    if (sorting.sortColumn !== column) {
       return <ArrowUpDownIcon className="ml-2 h-4 w-4" />;
     }
-    return sortDirection === "asc" ? (
+    return sorting.sortDirection === "Asc" ? (
       <ArrowUpIcon className="ml-2 h-4 w-4" />
     ) : (
       <ArrowDownIcon className="ml-2 h-4 w-4" />
@@ -285,38 +343,25 @@ export function AdminDashboardView() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead
-                  className="w-[100px]"
-                  onClick={() => handleSort("id")}
-                >
+                <TableHead className="w-[100px]">
+                  <div className="flex items-center">ID</div>
+                </TableHead>
+                <TableHead>
+                  <div className="flex items-center">Name</div>
+                </TableHead>
+                <TableHead>
+                  <div className="flex items-center">Email</div>
+                </TableHead>
+                <TableHead>
                   <div className="flex items-center">
-                    ID {getSortIcon("id")}
+                    <span>Plan</span>
                   </div>
                 </TableHead>
-                <TableHead onClick={() => handleSort("name")}>
-                  <div className="flex items-center">
-                    Name {getSortIcon("name")}
-                  </div>
+                <TableHead>
+                  <div className="flex items-center">Status</div>
                 </TableHead>
-                <TableHead onClick={() => handleSort("email")}>
-                  <div className="flex items-center">
-                    Email {getSortIcon("email")}
-                  </div>
-                </TableHead>
-                <TableHead onClick={() => handleSort("plan")}>
-                  <div className="flex items-center">
-                    <span>Plan</span> {getSortIcon("plan")}
-                  </div>
-                </TableHead>
-                <TableHead onClick={() => handleSort("status")}>
-                  <div className="flex items-center">
-                    Status {getSortIcon("status")}
-                  </div>
-                </TableHead>
-                <TableHead onClick={() => handleSort("joinDate")}>
-                  <div className="flex items-center">
-                    Date {getSortIcon("joinDate")}
-                  </div>
+                <TableHead>
+                  <div className="flex items-center">Date</div>
                 </TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -372,43 +417,26 @@ export function AdminDashboardView() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead
-                  className="w-[100px]"
-                  onClick={() => handleSort("id")}
-                >
-                  <div className="flex items-center">
-                    ID {getSortIcon("id")}
-                  </div>
+                <TableHead className="w-[100px]">
+                  <div className="flex items-center">ID</div>
                 </TableHead>
-                <TableHead onClick={() => handleSort("title")}>
-                  <div className="flex items-center">
-                    Title {getSortIcon("title")}
-                  </div>
+                <TableHead>
+                  <div className="flex items-center">Title</div>
                 </TableHead>
-                <TableHead onClick={() => handleSort("artist")}>
-                  <div className="flex items-center">
-                    Artist {getSortIcon("artist")}
-                  </div>
+                <TableHead>
+                  <div className="flex items-center">Artist</div>
                 </TableHead>
-                <TableHead onClick={() => handleSort("album")}>
-                  <div className="flex items-center">
-                    Album {getSortIcon("album")}
-                  </div>
+                <TableHead>
+                  <div className="flex items-center">Album</div>
                 </TableHead>
-                <TableHead onClick={() => handleSort("plays")}>
-                  <div className="flex items-center">
-                    Plays {getSortIcon("plays")}
-                  </div>
+                <TableHead>
+                  <div className="flex items-center">Plays</div>
                 </TableHead>
-                <TableHead onClick={() => handleSort("duration")}>
-                  <div className="flex items-center">
-                    Duration {getSortIcon("duration")}
-                  </div>
+                <TableHead>
+                  <div className="flex items-center">Duration</div>
                 </TableHead>
-                <TableHead onClick={() => handleSort("releaseDate")}>
-                  <div className="flex items-center">
-                    Release Date {getSortIcon("releaseDate")}
-                  </div>
+                <TableHead>
+                  <div className="flex items-center">Release Date</div>
                 </TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -450,43 +478,26 @@ export function AdminDashboardView() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead
-                  className="w-[100px]"
-                  onClick={() => handleSort("id")}
-                >
-                  <div className="flex items-center">
-                    ID {getSortIcon("id")}
-                  </div>
+                <TableHead className="w-[100px]">
+                  <div className="flex items-center">ID</div>
                 </TableHead>
-                <TableHead onClick={() => handleSort("title")}>
-                  <div className="flex items-center">
-                    Title {getSortIcon("title")}
-                  </div>
+                <TableHead>
+                  <div className="flex items-center">Title</div>
                 </TableHead>
-                <TableHead onClick={() => handleSort("artist")}>
-                  <div className="flex items-center">
-                    Artist {getSortIcon("artist")}
-                  </div>
+                <TableHead>
+                  <div className="flex items-center">Artist</div>
                 </TableHead>
-                <TableHead onClick={() => handleSort("type")}>
-                  <div className="flex items-center">
-                    Type {getSortIcon("type")}
-                  </div>
+                <TableHead>
+                  <div className="flex items-center">Type</div>
                 </TableHead>
-                <TableHead onClick={() => handleSort("price")}>
-                  <div className="flex items-center">
-                    Price {getSortIcon("price")}
-                  </div>
+                <TableHead>
+                  <div className="flex items-center">Price</div>
                 </TableHead>
-                <TableHead onClick={() => handleSort("minted")}>
-                  <div className="flex items-center">
-                    Minted {getSortIcon("minted")}
-                  </div>
+                <TableHead>
+                  <div className="flex items-center">Minted</div>
                 </TableHead>
-                <TableHead onClick={() => handleSort("createdDate")}>
-                  <div className="flex items-center">
-                    Created Date {getSortIcon("createdDate")}
-                  </div>
+                <TableHead>
+                  <div className="flex items-center">Created Date</div>
                 </TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -532,48 +543,29 @@ export function AdminDashboardView() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead
-                  className="w-[100px]"
-                  onClick={() => handleSort("id")}
-                >
-                  <div className="flex items-center">
-                    ID {getSortIcon("id")}
-                  </div>
+                <TableHead className="w-[100px]">
+                  <div className="flex items-center">ID</div>
                 </TableHead>
-                <TableHead onClick={() => handleSort("name")}>
-                  <div className="flex items-center">
-                    Name {getSortIcon("name")}
-                  </div>
+                <TableHead>
+                  <div className="flex items-center">Name</div>
                 </TableHead>
-                <TableHead onClick={() => handleSort("followers")}>
-                  <div className="flex items-center">
-                    Followers {getSortIcon("followers")}
-                  </div>
+                <TableHead>
+                  <div className="flex items-center">Followers</div>
                 </TableHead>
-                <TableHead onClick={() => handleSort("tracks")}>
-                  <div className="flex items-center">
-                    Tracks {getSortIcon("tracks")}
-                  </div>
+                <TableHead>
+                  <div className="flex items-center">Tracks</div>
                 </TableHead>
-                <TableHead onClick={() => handleSort("albums")}>
-                  <div className="flex items-center">
-                    Albums {getSortIcon("albums")}
-                  </div>
+                <TableHead>
+                  <div className="flex items-center">Albums</div>
                 </TableHead>
-                <TableHead onClick={() => handleSort("revenue")}>
-                  <div className="flex items-center">
-                    Revenue {getSortIcon("revenue")}
-                  </div>
+                <TableHead>
+                  <div className="flex items-center">Revenue</div>
                 </TableHead>
-                <TableHead onClick={() => handleSort("verified")}>
-                  <div className="flex items-center">
-                    Verified {getSortIcon("verified")}
-                  </div>
+                <TableHead>
+                  <div className="flex items-center">Verified</div>
                 </TableHead>
-                <TableHead onClick={() => handleSort("joinDate")}>
-                  <div className="flex items-center">
-                    Join Date {getSortIcon("joinDate")}
-                  </div>
+                <TableHead>
+                  <div className="flex items-center">Join Date</div>
                 </TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -655,189 +647,21 @@ export function AdminDashboardView() {
           <TabsTrigger value="artists">Artists</TabsTrigger>
           <TabsTrigger value="songs">Songs</TabsTrigger>
           <TabsTrigger value="nfts">NFTs</TabsTrigger>
+          <TabsTrigger value="applications">
+            Applications
+            {activeApplications !== 0 && (
+              <Badge className="w-5 h-5 ml-1 flex items-center justify-center rounded-full">
+                {activeApplications}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
 
-        {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Total Revenue
-                </CardTitle>
-                <TrendingUpIcon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">$45,231.89</div>
-                <p className="text-xs text-muted-foreground">
-                  +20.1% from last month
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Active Users
-                </CardTitle>
-                <UsersIcon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">+2350</div>
-                <p className="text-xs text-muted-foreground">
-                  +180.1% from last month
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Total Songs
-                </CardTitle>
-                <MusicIcon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">12,234</div>
-                <p className="text-xs text-muted-foreground">
-                  +19% from last month
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Active Subscriptions
-                </CardTitle>
-                <BarChart3Icon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">1,432</div>
-                <p className="text-xs text-muted-foreground">
-                  +5% from last month
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-            <Card className="col-span-4">
-              <CardHeader>
-                <CardTitle>Revenue Overview</CardTitle>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <LineChart
-                  data={[
-                    { name: "Jan", total: 1200 },
-                    { name: "Feb", total: 1900 },
-                    { name: "Mar", total: 1800 },
-                    { name: "Apr", total: 2400 },
-                    { name: "May", total: 2700 },
-                    { name: "Jun", total: 3100 },
-                    { name: "Jul", total: 3500 },
-                    { name: "Aug", total: 3200 },
-                    { name: "Sep", total: 3800 },
-                    { name: "Oct", total: 4200 },
-                    { name: "Nov", total: 4600 },
-                    { name: "Dec", total: 5100 },
-                  ]}
-                  categories={["total"]}
-                  colors={["#2563eb"]}
-                  valueFormatter={(value) => `$${value}`}
-                  className="h-60 w-1/2"
-                />
-              </CardContent>
-            </Card>
-            <Card className="col-span-3">
-              <CardHeader>
-                <CardTitle>Subscription Distribution</CardTitle>
-                <CardDescription>
-                  Breakdown of subscription plans
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <PieChart
-                  data={[
-                    { name: "Basic", value: 35 },
-                    { name: "Premium", value: 45 },
-                    { name: "Family", value: 20 },
-                  ]}
-                  category="value"
-                  index="name"
-                  valueFormatter={(value) => `${value}%`}
-                  colors={["#2563eb", "#4ade80", "#f97316"]}
-                  className="h-60 w-1/2"
-                  label={({ dataEntry }) =>
-                    `${dataEntry.name}: ${dataEntry.value}%`
-                  }
-                  labelStyle={{
-                    fill: "#ffffff",
-                    fontSize: "6px",
-                    fontWeight: "bold",
-                  }}
-                />
-              </CardContent>
-            </Card>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-            <Card className="col-span-4">
-              <CardHeader>
-                <CardTitle>User Growth</CardTitle>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <BarChart
-                  data={[
-                    { name: "Jan", total: 580 },
-                    { name: "Feb", total: 690 },
-                    { name: "Mar", total: 1100 },
-                    { name: "Apr", total: 1200 },
-                    { name: "May", total: 1380 },
-                    { name: "Jun", total: 1450 },
-                    { name: "Jul", total: 1700 },
-                    { name: "Aug", total: 1520 },
-                    { name: "Sep", total: 1900 },
-                    { name: "Oct", total: 2300 },
-                    { name: "Nov", total: 2400 },
-                    { name: "Dec", total: 2550 },
-                  ]}
-                  index="name"
-                  categories={["total"]}
-                  colors={["#8b5cf6"]}
-                  valueFormatter={(value) => `${value}`}
-                  className="h-60 w-1/2"
-                />
-              </CardContent>
-            </Card>
-            <Card className="col-span-3">
-              <CardHeader>
-                <CardTitle>NFT Sales</CardTitle>
-                <CardDescription>Monthly NFT sales volume</CardDescription>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <LineChart
-                  data={[
-                    { name: "Jan", total: 12000 },
-                    { name: "Feb", total: 18000 },
-                    { name: "Mar", total: 15000 },
-                    { name: "Apr", total: 22000 },
-                    { name: "May", total: 28000 },
-                    { name: "Jun", total: 32000 },
-                    { name: "Jul", total: 36000 },
-                    { name: "Aug", total: 30000 },
-                    { name: "Sep", total: 38000 },
-                    { name: "Oct", total: 42000 },
-                    { name: "Nov", total: 48000 },
-                    { name: "Dec", total: 52000 },
-                  ]}
-                  categories={["total"]}
-                  colors={["#ec4899"]}
-                  valueFormatter={(value) => `$${value}`}
-                  className="h-60 w-1/2"
-                />
-              </CardContent>
-            </Card>
-          </div>
+          <Overview />
         </TabsContent>
 
-        {/* Users Tab */}
         <TabsContent value="users" className="space-y-4">
           <Card>
             <CardHeader>
@@ -845,7 +669,6 @@ export function AdminDashboardView() {
               <CardDescription>Manage your platform users</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Filters */}
               <div className="flex flex-col space-y-2 md:flex-row md:items-center md:space-x-2 md:space-y-0">
                 <div className="relative flex-1">
                   <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -897,8 +720,6 @@ export function AdminDashboardView() {
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Table */}
               <div
                 className="rounded-md border"
                 ref={tableContainerRef}
@@ -906,8 +727,6 @@ export function AdminDashboardView() {
               >
                 {renderTable()}
               </div>
-
-              {/* Pagination */}
               <div className="flex items-center justify-between">
                 <div className="text-sm text-muted-foreground">
                   Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
@@ -964,7 +783,6 @@ export function AdminDashboardView() {
           </Card>
         </TabsContent>
 
-        {/* Songs Tab */}
         <TabsContent value="songs" className="space-y-4">
           <Card>
             <CardHeader>
@@ -972,7 +790,6 @@ export function AdminDashboardView() {
               <CardDescription>Manage your platform songs</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Filters */}
               <div className="flex flex-col space-y-2 md:flex-row md:items-center md:space-x-2 md:space-y-0">
                 <div className="relative flex-1">
                   <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -1012,8 +829,6 @@ export function AdminDashboardView() {
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Table */}
               <div
                 className="rounded-md border"
                 ref={tableContainerRef}
@@ -1021,8 +836,6 @@ export function AdminDashboardView() {
               >
                 {renderTable()}
               </div>
-
-              {/* Pagination */}
               <div className="flex items-center justify-between">
                 <div className="text-sm text-muted-foreground">
                   Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
@@ -1079,7 +892,6 @@ export function AdminDashboardView() {
           </Card>
         </TabsContent>
 
-        {/* NFTs Tab */}
         <TabsContent value="nfts" className="space-y-4">
           <Card>
             <CardHeader>
@@ -1087,7 +899,6 @@ export function AdminDashboardView() {
               <CardDescription>Manage your platform NFTs</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Filters */}
               <div className="flex flex-col space-y-2 md:flex-row md:items-center md:space-x-2 md:space-y-0">
                 <div className="relative flex-1">
                   <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -1138,8 +949,6 @@ export function AdminDashboardView() {
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Table */}
               <div
                 className="rounded-md border"
                 ref={tableContainerRef}
@@ -1148,7 +957,6 @@ export function AdminDashboardView() {
                 {renderTable()}
               </div>
 
-              {/* Pagination */}
               <div className="flex items-center justify-between">
                 <div className="text-sm text-muted-foreground">
                   Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
@@ -1205,7 +1013,19 @@ export function AdminDashboardView() {
           </Card>
         </TabsContent>
 
-        {/* Artists Tab */}
+        <TabsContent value="applications" className="space-y-4">
+          <ArtistApplications
+            activeApplications={activeApplications}
+            setActiveApplications={setActiveApplications}
+            filter={applicationsFilter}
+            setFilter={setApplicationsFilter}
+            sorting={applicationsSorting}
+            setSorting={setApplicationsSorting}
+            getSortIcon={getSortIcon}
+            handleSort={handleSort}
+          />
+        </TabsContent>
+
         <TabsContent value="artists" className="space-y-4">
           <Card>
             <CardHeader>
@@ -1213,7 +1033,6 @@ export function AdminDashboardView() {
               <CardDescription>Manage your platform artists</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Filters */}
               <div className="flex flex-col space-y-2 md:flex-row md:items-center md:space-x-2 md:space-y-0">
                 <div className="relative flex-1">
                   <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -1263,8 +1082,6 @@ export function AdminDashboardView() {
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Table */}
               <div
                 className="rounded-md border"
                 ref={tableContainerRef}
@@ -1272,8 +1089,6 @@ export function AdminDashboardView() {
               >
                 {renderTable()}
               </div>
-
-              {/* Pagination */}
               <div className="flex items-center justify-between">
                 <div className="text-sm text-muted-foreground">
                   Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
@@ -1330,102 +1145,8 @@ export function AdminDashboardView() {
           </Card>
         </TabsContent>
 
-        {/* Reports Tab */}
         <TabsContent value="reports" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Reports</CardTitle>
-              <CardDescription>Generate and download reports</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <UsersIcon className="h-5 w-5" /> User Report
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Generate a detailed report of user activity,
-                      registrations, and engagement metrics.
-                    </p>
-                    <Button className="w-full">Generate Report</Button>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <MusicIcon className="h-5 w-5" /> Content Report
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Generate a report on music content, including plays,
-                      uploads, and popularity metrics.
-                    </p>
-                    <Button className="w-full">Generate Report</Button>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <CoinsIcon className="h-5 w-5" /> NFT Report
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Generate a report on NFT sales, minting activity, and
-                      marketplace performance.
-                    </p>
-                    <Button className="w-full">Generate Report</Button>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingUpIcon className="h-5 w-5" /> Revenue Report
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Generate a financial report with revenue breakdowns,
-                      subscription data, and payment analytics.
-                    </p>
-                    <Button className="w-full">Generate Report</Button>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <UserIcon className="h-5 w-5" /> Artist Report
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Generate a report on artist performance, earnings, and
-                      content engagement metrics.
-                    </p>
-                    <Button className="w-full">Generate Report</Button>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <BarChart3Icon className="h-5 w-5" /> Custom Report
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Create a custom report by selecting specific metrics and
-                      data points to include.
-                    </p>
-                    <Button className="w-full">Create Custom Report</Button>
-                  </CardContent>
-                </Card>
-              </div>
-            </CardContent>
-          </Card>
+          <Reports />
         </TabsContent>
       </Tabs>
     </div>

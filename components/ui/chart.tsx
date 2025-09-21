@@ -13,6 +13,8 @@ import {
   Tooltip,
   Legend,
   ArcElement,
+  type ChartOptions,
+  type Scale,
 } from "chart.js";
 
 ChartJS.register(
@@ -27,61 +29,56 @@ ChartJS.register(
   Legend
 );
 
-interface ChartData {
-  name: string;
-  total: number;
-}
-
-interface PieChartData {
-  name: string;
-  value: number;
-}
-
 interface ChartProps {
-  data: ChartData[] | PieChartData[];
+  data: any[];
   index: string;
   categories: string[];
   colors: string[];
   valueFormatter?: (value: number) => string;
   className?: string;
-  label?: ({ dataEntry }: { dataEntry: any }) => string;
-  labelStyle?: React.CSSProperties;
 }
 
 export function LineChart({
   data,
+  index,
   categories,
   colors,
   valueFormatter,
   className,
 }: ChartProps) {
   const chartData = {
-    labels: data.map((item: any) => item.name),
-    datasets: categories.map((category, index) => ({
+    labels: data.map((item) => item[index]),
+    datasets: categories.map((category, i) => ({
       label: category,
-      data: data.map((item: any) => item[category]),
-      borderColor: colors[index % colors.length],
-      backgroundColor: colors[index % colors.length],
+      data: data.map((item) => item[category]),
+      borderColor: colors[i % colors.length],
+      backgroundColor: colors[i % colors.length],
       tension: 0.4,
     })),
   };
 
-  const options = {
+  const options: ChartOptions<"line"> = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        position: "top" as const,
-        display: false,
-      },
-      title: {
-        display: false,
-      },
+      legend: { position: "top", display: false },
+      title: { display: false },
     },
     scales: {
       y: {
         ticks: {
-          callback: valueFormatter,
+          callback: function (
+            this: Scale,
+            tickValue: string | number,
+            _index?: number,
+            _ticks?: unknown
+          ) {
+            const numeric =
+              typeof tickValue === "string" ? Number(tickValue) : tickValue;
+            return valueFormatter
+              ? valueFormatter(Number(numeric))
+              : String(tickValue);
+          },
         },
       },
     },
@@ -99,30 +96,36 @@ export function BarChart({
   className,
 }: ChartProps) {
   const chartData = {
-    labels: data.map((item: any) => item[index]),
+    labels: data.map((item) => item[index]),
     datasets: categories.map((category, i) => ({
       label: category,
-      data: data.map((item: any) => item[category]),
+      data: data.map((item) => item[category]),
       backgroundColor: colors[i % colors.length],
     })),
   };
 
-  const options = {
+  const options: ChartOptions<"bar"> = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        position: "top" as const,
-        display: false,
-      },
-      title: {
-        display: false,
-      },
+      legend: { position: "top", display: false },
+      title: { display: false },
     },
     scales: {
       y: {
         ticks: {
-          callback: valueFormatter,
+          callback: function (
+            this: Scale,
+            tickValue: string | number,
+            _index?: number,
+            _ticks?: unknown
+          ) {
+            const numeric =
+              typeof tickValue === "string" ? Number(tickValue) : tickValue;
+            return valueFormatter
+              ? valueFormatter(Number(numeric))
+              : String(tickValue);
+          },
         },
       },
     },
@@ -133,45 +136,39 @@ export function BarChart({
 
 export function PieChart({
   data,
-  category,
   index,
+  categories,
   colors,
   valueFormatter,
   className,
-  label,
-  labelStyle,
 }: ChartProps) {
   const chartData = {
-    labels: data.map((item: any) => item[index]),
-    datasets: [
-      {
-        label: category,
-        data: data.map((item: any) => item[category]),
-        backgroundColor: colors,
-        borderWidth: 0,
-      },
-    ],
+    labels: data.map((item) => item[index]),
+    datasets: categories.map((category, i) => ({
+      label: category,
+      data: data.map((item) => item[category]),
+      backgroundColor: colors,
+      borderWidth: 0,
+    })),
   };
 
-  const options = {
+  const options: ChartOptions<"pie"> = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        position: "right" as const,
-      },
+      legend: { position: "right" },
       tooltip: {
         callbacks: {
-          label: function (tooltipItem: any) {
-            const label = tooltipItem.label || "";
-            const value = tooltipItem.raw;
+          label: function (context: any) {
+            const label = context.label ?? "";
+            const value = context.raw;
+            if (valueFormatter)
+              return `${label}: ${valueFormatter(Number(value))}`;
             return `${label}: ${value}`;
           },
         },
       },
-      title: {
-        display: false,
-      },
+      title: { display: false },
     },
   };
 

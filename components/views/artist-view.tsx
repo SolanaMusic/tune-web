@@ -307,8 +307,9 @@ export function ArtistView({ id }: { id: number }) {
             <div className="h-40 w-40 flex-shrink-0 overflow-hidden rounded-full border-4 border-background shadow-lg md:h-48 md:w-48">
               <img
                 src={
-                  `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${artist.imageUrl}` ||
-                  "/placeholder.svg"
+                  artist.imageUrl
+                    ? `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${artist.imageUrl}`
+                    : "/placeholder.svg"
                 }
                 alt={artist.name}
                 className="h-full w-full object-cover"
@@ -685,8 +686,9 @@ export function ArtistView({ id }: { id: number }) {
                     <div className="overflow-hidden rounded-full">
                       <img
                         src={
-                          `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${artist.imageUrl}` ||
-                          "/placeholder.svg"
+                          artist.imageUrl
+                            ? `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${artist.imageUrl}`
+                            : "/placeholder.svg"
                         }
                         alt={artist.name}
                         className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105"

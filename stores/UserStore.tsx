@@ -55,7 +55,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             const updatedUser: User = {
               ...parsedUser,
               role: res.data.role,
-              name: res.data.userName,
+              name: res.data.artistName || res.data.userName,
               avatar: getAvatarUrl(res.data.profile.avatarUrl),
               tokensAmount: res.data.profile.tokensAmount,
             };
