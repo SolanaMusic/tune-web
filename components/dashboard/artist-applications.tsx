@@ -28,15 +28,7 @@ import {
   SelectContent,
   SelectItem,
 } from "../ui/select";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationPrevious,
-  PaginationNext,
-  PaginationLink,
-  PaginatedResponse,
-} from "../ui/pagination";
+import { PaginatedResponse } from "../ui/pagination";
 import {
   Table,
   TableBody,
@@ -75,6 +67,7 @@ import { Label } from "../ui/label";
 import Link from "next/link";
 import { useUserStore } from "@/stores/UserStore";
 import { Textarea } from "../ui/textarea";
+import { PaginationWrapper } from "../ui/pagination-wrapper";
 
 interface ArtistApplicationsProps {
   setActiveApplications: React.Dispatch<React.SetStateAction<number>>;
@@ -113,14 +106,13 @@ export function ArtistApplications({
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const { user } = useUserStore();
 
-  const totalItems = applications?.data.length ?? 0;
   const startItem =
-    totalItems === 0
+    applications?.totalCount === 0
       ? 0
       : (applications?.pageNumber! - 1) * filter.pageSize + 1;
   const endItem = Math.min(
     (applications?.pageNumber ?? 1) * filter.pageSize,
-    totalItems
+    applications?.totalCount || 0
   );
 
   useEffect(() => {
@@ -796,74 +788,18 @@ export function ArtistApplications({
 
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground whitespace-nowrap">
-            Showing {startItem} to {endItem} of {totalItems} entries
+            Showing {startItem} to {endItem} of {applications?.totalCount}{" "}
+            entries
           </div>
 
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  onClick={() =>
-                    setFilter((prev) => ({
-                      ...prev,
-                      pageNumber: Math.max(prev.pageNumber - 1, 1),
-                    }))
-                  }
-                  disabled={applications?.pageNumber === 1 || totalItems === 0}
-                />
-              </PaginationItem>
-
-              {Array.from(
-                { length: Math.min(5, applications?.totalPages ?? 1) },
-                (_, i) => {
-                  let pageNum;
-                  if ((applications?.totalPages ?? 1) <= 5) pageNum = i + 1;
-                  else if ((applications?.pageNumber ?? 1) <= 3)
-                    pageNum = i + 1;
-                  else if (
-                    (applications?.pageNumber ?? 1) >=
-                    (applications?.totalPages ?? 1) - 2
-                  )
-                    pageNum = (applications?.totalPages ?? 1) - 4 + i;
-                  else pageNum = (applications?.pageNumber ?? 1) - 2 + i;
-
-                  return (
-                    <PaginationItem key={pageNum}>
-                      <PaginationLink
-                        isActive={(applications?.pageNumber ?? 1) === pageNum}
-                        onClick={() =>
-                          setFilter((prev) => ({
-                            ...prev,
-                            pageNumber: pageNum,
-                          }))
-                        }
-                      >
-                        {pageNum}
-                      </PaginationLink>
-                    </PaginationItem>
-                  );
-                }
-              )}
-
-              <PaginationItem>
-                <PaginationNext
-                  onClick={() =>
-                    setFilter((prev) => ({
-                      ...prev,
-                      pageNumber: Math.min(
-                        prev.pageNumber + 1,
-                        applications?.totalPages ?? 1
-                      ),
-                    }))
-                  }
-                  disabled={
-                    applications?.pageNumber === applications?.totalPages ||
-                    totalItems === 0
-                  }
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
+          <PaginationWrapper
+            pageNumber={applications?.pageNumber || 0}
+            totalPages={applications?.totalPages || 0}
+            totalCount={applications?.totalCount || 0}
+            onPageChange={(page) =>
+              setFilter((prev) => ({ ...prev, pageNumber: page }))
+            }
+          />
         </div>
       </CardContent>
     </Card>

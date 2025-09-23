@@ -100,7 +100,9 @@ export function Overview() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Users Dynamics
+            </CardTitle>
             <UsersIcon className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -135,7 +137,7 @@ export function Overview() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Active Subscriptions
+              Subscriptions Sales
             </CardTitle>
             <BarChart3Icon className="h-5 w-5 text-muted-foreground" />
           </CardHeader>

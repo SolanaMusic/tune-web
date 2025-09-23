@@ -7,6 +7,7 @@ import { type ButtonProps, buttonVariants } from "@/components/ui/button";
 export interface PaginatedResponse {
   data: any[];
   pageNumber: number;
+  totalCount: number;
   totalPages: number;
 }
 
