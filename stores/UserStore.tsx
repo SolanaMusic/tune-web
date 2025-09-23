@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { create } from "zustand";
 import { useEffect, useState, ReactNode } from "react";
 import axios from "axios";
+import { getAvatarUrl } from "@/lib/utils";
 
 type User = {
   id: number;
@@ -71,14 +72,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
     setLoading(false);
   }, [setUser]);
-
-  const getAvatarUrl = (avatarUrl: string) => {
-    if (!avatarUrl) return "/placeholder.svg";
-
-    return avatarUrl.startsWith("http")
-      ? avatarUrl
-      : `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${avatarUrl}`;
-  };
 
   if (loading)
     return (

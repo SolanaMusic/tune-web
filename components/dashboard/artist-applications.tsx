@@ -10,7 +10,6 @@ import {
   Globe,
   Loader2,
   MapPin,
-  SearchIcon,
   XCircle,
 } from "lucide-react";
 import {
@@ -39,7 +38,6 @@ import {
 } from "@/components/ui/table";
 import {
   ArtistApplicationsFilter,
-  DashboardSorting,
   fetchPendingApplications,
 } from "../views/admin-dashboard-view";
 import axios from "axios";
@@ -68,19 +66,23 @@ import Link from "next/link";
 import { useUserStore } from "@/stores/UserStore";
 import { Textarea } from "../ui/textarea";
 import { PaginationWrapper } from "../ui/pagination-wrapper";
+import {
+  buildQueryParams,
+  formatDateTime,
+  getAvatarUrl,
+  handleSort,
+  Sorting,
+} from "@/lib/utils";
+import { TableToolbar } from "./tables/table-toolbar";
+import { CountryFlag } from "../ui/country-flag";
 
 interface ArtistApplicationsProps {
   setActiveApplications: React.Dispatch<React.SetStateAction<number>>;
   filter: ArtistApplicationsFilter;
   setFilter: React.Dispatch<React.SetStateAction<ArtistApplicationsFilter>>;
-  sorting: DashboardSorting;
-  setSorting: React.Dispatch<React.SetStateAction<DashboardSorting>>;
-  getSortIcon: (sorting: DashboardSorting, column: string) => React.ReactNode;
-  handleSort: (
-    column: string,
-    sorting: DashboardSorting,
-    setSorting: React.Dispatch<React.SetStateAction<DashboardSorting>>
-  ) => void;
+  sorting: Sorting;
+  setSorting: React.Dispatch<React.SetStateAction<Sorting>>;
+  getSortIcon: (sorting: Sorting, column: string) => React.ReactNode;
 }
 
 export function ArtistApplications({
@@ -90,7 +92,6 @@ export function ArtistApplications({
   sorting,
   setSorting,
   getSortIcon,
-  handleSort,
 }: ArtistApplicationsProps) {
   const [applications, setApplications] = useState<PaginatedResponse>();
   const [countries, setCountries] = useState<any>([]);
@@ -120,18 +121,7 @@ export function ArtistApplications({
       setIsLoading(true);
 
       try {
-        const queryParams = new URLSearchParams();
-        Object.entries(filter).forEach(([key, value]) => {
-          if (value !== null && value !== undefined && value !== "") {
-            queryParams.append(key, String(value));
-          }
-        });
-
-        if (sorting.sortColumn) {
-          queryParams.append("sortColumn", sorting.sortColumn);
-          queryParams.append("sortDirection", sorting.sortDirection);
-        }
-
+        const queryParams = buildQueryParams(filter, sorting);
         const applicationsRequest = axios.get<PaginatedResponse>(
           `${
             process.env.NEXT_PUBLIC_API_BASE_URL
@@ -271,26 +261,6 @@ export function ArtistApplications({
     }
   };
 
-  const getAvatarUrl = (avatarUrl: string) => {
-    if (!avatarUrl) return "/placeholder.svg";
-
-    return avatarUrl.startsWith("http")
-      ? avatarUrl
-      : `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${avatarUrl}`;
-  };
-
-  const formatDateTime = (dateString: string | Date) => {
-    const date = new Date(dateString);
-    return date.toLocaleString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -341,7 +311,15 @@ export function ArtistApplications({
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-sm">
                         <MapPin className="h-4 w-4 text-muted-foreground" />
-                        {selectedApplication.user.profile.country.name}
+                        <div className="flex gap-1">
+                          <CountryFlag
+                            code={
+                              selectedApplication.user.profile.country
+                                .countryCode
+                            }
+                          />
+                          {selectedApplication.user.profile.country.name}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2 text-sm">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -578,19 +556,7 @@ export function ArtistApplications({
       </CardHeader>
 
       <CardContent className="space-y-4">
-        <div className="flex flex-col space-y-2 md:flex-row md:items-center md:space-x-2 md:space-y-0">
-          <div className="relative flex-1">
-            <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search applications..."
-              className="pl-8"
-              value={filter.query}
-              onChange={(e) =>
-                setFilter((prev) => ({ ...prev, query: e.target.value }))
-              }
-            />
-          </div>
-
+        <TableToolbar filter={filter} setFilter={setFilter}>
           <Select
             value={filter.status}
             onValueChange={(value) =>
@@ -610,50 +576,7 @@ export function ArtistApplications({
               <SelectItem value="Rejected">Rejected</SelectItem>
             </SelectContent>
           </Select>
-
-          <Select
-            value={filter.timeFilter}
-            onValueChange={(value) =>
-              setFilter((prev) => ({
-                ...prev,
-                timeFilter: value as
-                  | "Today"
-                  | "Week"
-                  | "Month"
-                  | "Year"
-                  | "AllTime",
-              }))
-            }
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by date" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="AllTime">All Time</SelectItem>
-              <SelectItem value="Today">Today</SelectItem>
-              <SelectItem value="Week">This Week</SelectItem>
-              <SelectItem value="Month">This Month</SelectItem>
-              <SelectItem value="Year">This Year</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={String(filter.pageSize)}
-            onValueChange={(value) =>
-              setFilter((prev) => ({ ...prev, pageSize: parseInt(value) }))
-            }
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Items per page" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="5">5 per page</SelectItem>
-              <SelectItem value="10">10 per page</SelectItem>
-              <SelectItem value="20">20 per page</SelectItem>
-              <SelectItem value="50">50 per page</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        </TableToolbar>
 
         <div
           className="rounded-md border"
@@ -665,39 +588,33 @@ export function ArtistApplications({
               <TableRow>
                 <TableHead
                   className="w-[100px]"
-                  onClick={() => handleSort("id", sorting, setSorting)}
+                  onClick={() => handleSort("id", setSorting)}
                 >
                   <div className="flex items-center">
                     ID {getSortIcon(sorting, "id")}
                   </div>
                 </TableHead>
                 <TableHead
-                  onClick={() =>
-                    handleSort("user.userName", sorting, setSorting)
-                  }
+                  onClick={() => handleSort("user.userName", setSorting)}
                 >
                   <div className="flex items-center">
                     User {getSortIcon(sorting, "user.userName")}
                   </div>
                 </TableHead>
-                <TableHead
-                  onClick={() => handleSort("status", sorting, setSorting)}
-                >
+                <TableHead onClick={() => handleSort("status", setSorting)}>
                   <div className="flex items-center">
                     Status {getSortIcon(sorting, "status")}
                   </div>
                 </TableHead>
                 <TableHead
-                  onClick={() => handleSort("createdDate", sorting, setSorting)}
+                  onClick={() => handleSort("createdDate", setSorting)}
                 >
                   <div className="flex items-center">
                     Submitted {getSortIcon(sorting, "createdDate")}
                   </div>
                 </TableHead>
                 <TableHead
-                  onClick={() =>
-                    handleSort("reviewer.userName", sorting, setSorting)
-                  }
+                  onClick={() => handleSort("reviewer.userName", setSorting)}
                 >
                   <div className="flex items-center">
                     Reviewer {getSortIcon(sorting, "reviewer.userName")}

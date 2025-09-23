@@ -68,6 +68,7 @@ import {
 } from "../ui/dialog";
 import { Progress } from "../ui/progress";
 import Link from "next/link";
+import { getAvatarUrl } from "@/lib/utils";
 
 export function ProfileView() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -198,14 +199,6 @@ export function ProfileView() {
     } catch (error) {
       console.error("Failed to update user", error);
     }
-  };
-
-  const getAvatarUrl = (avatarUrl: string) => {
-    if (!avatarUrl) return "/placeholder.svg";
-
-    return avatarUrl.startsWith("http")
-      ? avatarUrl
-      : `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${avatarUrl}`;
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

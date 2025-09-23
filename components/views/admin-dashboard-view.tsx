@@ -55,18 +55,15 @@ import { Reports } from "../dashboard/reports";
 import { Overview } from "../dashboard/overview";
 import { ArtistApplications } from "../dashboard/artist-applications";
 import axios from "axios";
+import { Users } from "../dashboard/users";
+import { Sorting } from "@/lib/utils";
 
-interface DashboardFilter {
+export interface DashboardFilter {
   query: string;
   timeFilter: "Today" | "Week" | "Month" | "Year" | "AllTime";
   pageNumber: number;
   totalPages: number;
   pageSize: number;
-}
-
-export interface DashboardSorting {
-  sortColumn: string;
-  sortDirection: "Asc" | "Desc";
 }
 
 export interface ArtistApplicationsFilter extends DashboardFilter {
@@ -96,8 +93,10 @@ export function AdminDashboardView() {
   const [dateFilter, setDateFilter] = useState("all");
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
-  const [applicationsSorting, setApplicationsSorting] =
-    useState<DashboardSorting>({ sortColumn: "", sortDirection: "Asc" });
+  const [applicationsSorting, setApplicationsSorting] = useState<Sorting>({
+    sortColumn: "",
+    sortDirection: "Asc",
+  });
   const [applicationsFilter, setApplicationsFilter] =
     useState<ArtistApplicationsFilter>({
       query: "",
@@ -108,6 +107,18 @@ export function AdminDashboardView() {
       status: "All",
     });
 
+  const [usersSorting, setUsersSorting] = useState<Sorting>({
+    sortColumn: "",
+    sortDirection: "Asc",
+  });
+  const [usersFilter, setUsersFilter] = useState<DashboardFilter>({
+    query: "",
+    timeFilter: "AllTime",
+    pageNumber: 1,
+    totalPages: 1,
+    pageSize: 10,
+  });
+
   useEffect(() => {
     const fetchData = async () => {
       const response = await fetchPendingApplications();
@@ -116,24 +127,6 @@ export function AdminDashboardView() {
 
     fetchData();
   }, []);
-
-  const users = Array.from({ length: 100 }, (_, i) => ({
-    id: `u${i + 1}`,
-    name: `User ${i + 1}`,
-    email: `user${i + 1}@example.com`,
-    plan: i % 3 === 0 ? "Premium" : i % 3 === 1 ? "Basic" : "Family",
-    status:
-      i % 4 === 0
-        ? "Active"
-        : i % 4 === 1
-        ? "Inactive"
-        : i % 4 === 2
-        ? "Pending"
-        : "Suspended",
-    joinDate: new Date(
-      Date.now() - Math.floor(Math.random() * 10000000000)
-    ).toLocaleDateString(),
-  }));
 
   const songs = Array.from({ length: 100 }, (_, i) => ({
     id: `s${i + 1}`,
@@ -261,27 +254,7 @@ export function AdminDashboardView() {
     });
   };
 
-  const handleSort = (
-    column: string,
-    sorting: DashboardSorting,
-    setSorting: React.Dispatch<React.SetStateAction<DashboardSorting>>
-  ) => {
-    setSorting((prev) => {
-      if (prev.sortColumn === column) {
-        return {
-          ...prev,
-          sortDirection: prev.sortDirection === "Asc" ? "Desc" : "Asc",
-        };
-      } else {
-        return {
-          sortColumn: column,
-          sortDirection: "Asc",
-        };
-      }
-    });
-  };
-
-  const getSortIcon = (sorting: DashboardSorting, column: string) => {
+  const getSortIcon = (sorting: Sorting, column: string) => {
     if (sorting.sortColumn !== column) {
       return <ArrowUpDownIcon className="ml-2 h-4 w-4" />;
     }
@@ -306,8 +279,6 @@ export function AdminDashboardView() {
 
   const getCurrentData = () => {
     switch (activeTab) {
-      case "users":
-        return getPaginatedData(users);
       case "artists":
         return getPaginatedData(artists);
       case "songs":
@@ -338,80 +309,6 @@ export function AdminDashboardView() {
 
   const renderTable = () => {
     switch (activeTab) {
-      case "users":
-        return (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[100px]">
-                  <div className="flex items-center">ID</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Name</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Email</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">
-                    <span>Plan</span>
-                  </div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Status</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Date</div>
-                </TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map((user, index) => (
-                <TableRow key={user.id || index}>
-                  <TableCell>{user.id}</TableCell>
-                  <TableCell>{user.name}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>{user.plan}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={
-                        user.status === "Active"
-                          ? "bg-green-500/20 text-green-500"
-                          : user.status === "Inactive"
-                          ? "bg-amber-500/20 text-amber-500"
-                          : user.status === "Pending"
-                          ? "bg-blue-500/20 text-blue-500"
-                          : "bg-red-500/20 text-red-500"
-                      }
-                    >
-                      {user.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{user.joinDate}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontalIcon className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>View details</DropdownMenuItem>
-                        <DropdownMenuItem>Edit user</DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">
-                          Delete user
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        );
       case "songs":
         return (
           <Table>
@@ -663,124 +560,13 @@ export function AdminDashboardView() {
         </TabsContent>
 
         <TabsContent value="users" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Management</CardTitle>
-              <CardDescription>Manage your platform users</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-col space-y-2 md:flex-row md:items-center md:space-x-2 md:space-y-0">
-                <div className="relative flex-1">
-                  <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search users..."
-                    className="pl-8"
-                    value={filterValue}
-                    onChange={(e) => setFilterValue(e.target.value)}
-                  />
-                </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="suspended">Suspended</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={dateFilter} onValueChange={setDateFilter}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by date" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Time</SelectItem>
-                    <SelectItem value="today">Today</SelectItem>
-                    <SelectItem value="week">This Week</SelectItem>
-                    <SelectItem value="month">This Month</SelectItem>
-                    <SelectItem value="year">This Year</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={itemsPerPage.toString()}
-                  onValueChange={(value) =>
-                    setItemsPerPage(Number.parseInt(value))
-                  }
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Items per page" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="5">5 per page</SelectItem>
-                    <SelectItem value="10">10 per page</SelectItem>
-                    <SelectItem value="20">20 per page</SelectItem>
-                    <SelectItem value="50">50 per page</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div
-                className="rounded-md border"
-                ref={tableContainerRef}
-                style={{ height: "400px", overflow: "auto" }}
-              >
-                {renderTable()}
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
-                  {Math.min(currentPage * itemsPerPage, totalItems)} of{" "}
-                  {totalItems} entries
-                </div>
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        onClick={() =>
-                          setCurrentPage((prev) => Math.max(prev - 1, 1))
-                        }
-                        disabled={currentPage === 1}
-                      />
-                    </PaginationItem>
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-
-                      return (
-                        <PaginationItem key={pageNum}>
-                          <PaginationLink
-                            isActive={currentPage === pageNum}
-                            onClick={() => setCurrentPage(pageNum)}
-                          >
-                            {pageNum}
-                          </PaginationLink>
-                        </PaginationItem>
-                      );
-                    })}
-                    <PaginationItem>
-                      <PaginationNext
-                        onClick={() =>
-                          setCurrentPage((prev) =>
-                            Math.min(prev + 1, totalPages)
-                          )
-                        }
-                        disabled={currentPage === totalPages}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              </div>
-            </CardContent>
-          </Card>
+          <Users
+            filter={usersFilter}
+            setFilter={setUsersFilter}
+            sorting={usersSorting}
+            setSorting={setUsersSorting}
+            getSortIcon={getSortIcon}
+          />
         </TabsContent>
 
         <TabsContent value="songs" className="space-y-4">
@@ -1021,7 +807,6 @@ export function AdminDashboardView() {
             sorting={applicationsSorting}
             setSorting={setApplicationsSorting}
             getSortIcon={getSortIcon}
-            handleSort={handleSort}
           />
         </TabsContent>
 
