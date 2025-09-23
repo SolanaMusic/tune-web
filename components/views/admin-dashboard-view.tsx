@@ -57,6 +57,7 @@ import { ArtistApplications } from "../dashboard/artist-applications";
 import axios from "axios";
 import { Users } from "../dashboard/users";
 import { Sorting } from "@/lib/utils";
+import { Artists } from "../dashboard/artists";
 
 export interface DashboardFilter {
   query: string;
@@ -119,6 +120,18 @@ export function AdminDashboardView() {
     pageSize: 10,
   });
 
+  const [artistsSorting, setArtistsSorting] = useState<Sorting>({
+    sortColumn: "",
+    sortDirection: "Asc",
+  });
+  const [artistsFilter, setArtistsFilter] = useState<DashboardFilter>({
+    query: "",
+    timeFilter: "AllTime",
+    pageNumber: 1,
+    totalPages: 1,
+    pageSize: 10,
+  });
+
   useEffect(() => {
     const fetchData = async () => {
       const response = await fetchPendingApplications();
@@ -154,19 +167,6 @@ export function AdminDashboardView() {
     minted: Math.floor(Math.random() * 1000),
     totalSupply: 1000,
     createdDate: new Date(
-      Date.now() - Math.floor(Math.random() * 10000000000)
-    ).toLocaleDateString(),
-  }));
-
-  const artists = Array.from({ length: 100 }, (_, i) => ({
-    id: `a${i + 1}`,
-    name: `Artist ${i + 1}`,
-    followers: Math.floor(Math.random() * 10000000),
-    tracks: Math.floor(Math.random() * 100) + 1,
-    albums: Math.floor(Math.random() * 10) + 1,
-    revenue: Math.floor(Math.random() * 1000000),
-    verified: i % 3 === 0,
-    joinDate: new Date(
       Date.now() - Math.floor(Math.random() * 10000000000)
     ).toLocaleDateString(),
   }));
@@ -279,8 +279,6 @@ export function AdminDashboardView() {
 
   const getCurrentData = () => {
     switch (activeTab) {
-      case "artists":
-        return getPaginatedData(artists);
       case "songs":
         return getPaginatedData(songs);
       case "nfts":
@@ -435,87 +433,6 @@ export function AdminDashboardView() {
             </TableBody>
           </Table>
         );
-      case "artists":
-        return (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[100px]">
-                  <div className="flex items-center">ID</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Name</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Followers</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Tracks</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Albums</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Revenue</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Verified</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Join Date</div>
-                </TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map((artist, index) => (
-                <TableRow key={artist.id || index}>
-                  <TableCell className="font-medium">{artist.id}</TableCell>
-                  <TableCell>{artist.name}</TableCell>
-                  <TableCell>{formatNumber(artist.followers)}</TableCell>
-                  <TableCell>{artist.tracks}</TableCell>
-                  <TableCell>{artist.albums}</TableCell>
-                  <TableCell>${formatNumber(artist.revenue)}</TableCell>
-                  <TableCell>
-                    {artist.verified ? (
-                      <Badge
-                        variant="outline"
-                        className="bg-green-500/20 text-green-500"
-                      >
-                        Verified
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="bg-amber-500/20 text-amber-500"
-                      >
-                        Unverified
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>{artist.joinDate}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontalIcon className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>View details</DropdownMenuItem>
-                        <DropdownMenuItem>Edit artist</DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">
-                          Delete artist
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        );
       default:
         return null;
     }
@@ -565,6 +482,16 @@ export function AdminDashboardView() {
             setFilter={setUsersFilter}
             sorting={usersSorting}
             setSorting={setUsersSorting}
+            getSortIcon={getSortIcon}
+          />
+        </TabsContent>
+
+        <TabsContent value="artists" className="space-y-4">
+          <Artists
+            filter={artistsFilter}
+            setFilter={setArtistsFilter}
+            sorting={artistsSorting}
+            setSorting={setArtistsSorting}
             getSortIcon={getSortIcon}
           />
         </TabsContent>
@@ -808,125 +735,6 @@ export function AdminDashboardView() {
             setSorting={setApplicationsSorting}
             getSortIcon={getSortIcon}
           />
-        </TabsContent>
-
-        <TabsContent value="artists" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Artist Management</CardTitle>
-              <CardDescription>Manage your platform artists</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-col space-y-2 md:flex-row md:items-center md:space-x-2 md:space-y-0">
-                <div className="relative flex-1">
-                  <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search artists..."
-                    className="pl-8"
-                    value={filterValue}
-                    onChange={(e) => setFilterValue(e.target.value)}
-                  />
-                </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Verification status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Artists</SelectItem>
-                    <SelectItem value="verified">Verified</SelectItem>
-                    <SelectItem value="unverified">Unverified</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={dateFilter} onValueChange={setDateFilter}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by date" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Time</SelectItem>
-                    <SelectItem value="today">Today</SelectItem>
-                    <SelectItem value="week">This Week</SelectItem>
-                    <SelectItem value="month">This Month</SelectItem>
-                    <SelectItem value="year">This Year</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={itemsPerPage.toString()}
-                  onValueChange={(value) =>
-                    setItemsPerPage(Number.parseInt(value))
-                  }
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Items per page" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="5">5 per page</SelectItem>
-                    <SelectItem value="10">10 per page</SelectItem>
-                    <SelectItem value="20">20 per page</SelectItem>
-                    <SelectItem value="50">50 per page</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div
-                className="rounded-md border"
-                ref={tableContainerRef}
-                style={{ height: "400px", overflow: "auto" }}
-              >
-                {renderTable()}
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
-                  {Math.min(currentPage * itemsPerPage, totalItems)} of{" "}
-                  {totalItems} entries
-                </div>
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        onClick={() =>
-                          setCurrentPage((prev) => Math.max(prev - 1, 1))
-                        }
-                        disabled={currentPage === 1}
-                      />
-                    </PaginationItem>
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-
-                      return (
-                        <PaginationItem key={pageNum}>
-                          <PaginationLink
-                            isActive={currentPage === pageNum}
-                            onClick={() => setCurrentPage(pageNum)}
-                          >
-                            {pageNum}
-                          </PaginationLink>
-                        </PaginationItem>
-                      );
-                    })}
-                    <PaginationItem>
-                      <PaginationNext
-                        onClick={() =>
-                          setCurrentPage((prev) =>
-                            Math.min(prev + 1, totalPages)
-                          )
-                        }
-                        disabled={currentPage === totalPages}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="reports" className="space-y-4">

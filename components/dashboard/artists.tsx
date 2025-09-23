@@ -47,24 +47,24 @@ interface UsersProps {
   getSortIcon: (sorting: Sorting, column: string) => React.ReactNode;
 }
 
-export function Users({
+export function Artists({
   filter,
   setFilter,
   sorting,
   setSorting,
   getSortIcon,
 }: UsersProps) {
-  const [users, setUsers] = useState<PaginatedResponse>();
+  const [artists, setArtists] = useState<PaginatedResponse>();
   const [isLoading, setIsLoading] = useState(true);
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
   const startItem =
-    users?.totalCount === 0
+    artists?.totalCount === 0
       ? 0
-      : (users?.pageNumber! - 1) * filter.pageSize + 1;
+      : (artists?.pageNumber! - 1) * filter.pageSize + 1;
   const endItem = Math.min(
-    (users?.pageNumber ?? 1) * filter.pageSize,
-    users?.totalCount || 0
+    (artists?.pageNumber ?? 1) * filter.pageSize,
+    artists?.totalCount || 0
   );
 
   useEffect(() => {
@@ -76,10 +76,10 @@ export function Users({
         const response = await axios.get<PaginatedResponse>(
           `${
             process.env.NEXT_PUBLIC_API_BASE_URL
-          }dashboard/users?${queryParams.toString()}`
+          }dashboard/artists?${queryParams.toString()}`
         );
 
-        setUsers(response.data);
+        setArtists(response.data);
       } catch (error) {
         console.error("Error fetching users:", error);
       } finally {
@@ -117,7 +117,7 @@ export function Users({
             <TableHeader>
               <TableRow>
                 <TableHead
-                  className="w-[150px]"
+                  className="w-[100px]"
                   onClick={() => handleSort("id", setSorting)}
                 >
                   <div className="flex items-center">
@@ -125,63 +125,91 @@ export function Users({
                   </div>
                 </TableHead>
                 <TableHead
-                  onClick={() => handleSort("userName", setSorting)}
-                  className="w-[350px]"
+                  onClick={() => handleSort("name", setSorting)}
+                  className="w-[300px]"
                 >
                   <div className="flex items-center">
-                    User {getSortIcon(sorting, "userName")}
+                    User {getSortIcon(sorting, "name")}
                   </div>
                 </TableHead>
                 <TableHead
-                  className="w-[350px]"
-                  onClick={() => handleSort("profile.country.name", setSorting)}
+                  className="w-[300px]"
+                  onClick={() => handleSort("country.name", setSorting)}
                 >
                   <div className="flex items-center">
-                    Country {getSortIcon(sorting, "profile.country.name")}
+                    Country {getSortIcon(sorting, "country.name")}
                   </div>
                 </TableHead>
                 <TableHead
-                  onClick={() => handleSort("profile.createdDate", setSorting)}
+                  className="w-[200px]"
+                  onClick={() => handleSort("subscribersCount", setSorting)}
                 >
                   <div className="flex items-center">
-                    Join Date {getSortIcon(sorting, "profile.createdDate")}
+                    Followers {getSortIcon(sorting, "subscribersCount")}
                   </div>
                 </TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead
+                  className="w-[200px]"
+                  onClick={() => handleSort("albums", setSorting)}
+                >
+                  <div className="flex items-center">
+                    Albums {getSortIcon(sorting, "albums")}
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="w-[200px]"
+                  onClick={() => handleSort("tracks", setSorting)}
+                >
+                  <div className="flex items-center">
+                    Tracks {getSortIcon(sorting, "tracks")}
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="w-[300px]"
+                  onClick={() => handleSort("createdDate", setSorting)}
+                >
+                  <div className="flex items-center">
+                    Join Date {getSortIcon(sorting, "createdDate")}
+                  </div>
+                </TableHead>
+                <TableHead className="w-[100px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users?.data.map((user, index) => (
-                <TableRow key={user.id || index}>
-                  <TableCell className="font-medium">{user.id}</TableCell>
+              {artists?.data.map((artist, index) => (
+                <TableRow key={artist.id || index}>
+                  <TableCell className="font-medium">{artist.id}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
-                        <AvatarImage
-                          src={getAvatarUrl(user.profile.avatarUrl)}
-                        />
-                        <AvatarFallback>
-                          {user.userName.charAt(0)}
-                        </AvatarFallback>
+                        <AvatarImage src={getAvatarUrl(artist.imageUrl)} />
+                        <AvatarFallback>{artist.name.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="font-medium">
-                          {user.artistName || user.userName}
-                        </div>
+                        <div className="font-medium">{artist.name}</div>
                         <div className="text-sm text-muted-foreground">
-                          {user.email}
+                          {artist.user.email}
                         </div>
                       </div>
                     </div>
                   </TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2 whitespace-nowrap">
-                      <CountryFlag code={user.profile.country.countryCode} />
-                      <span>{user.profile.country.name}</span>
+                      <CountryFlag code={artist.country.countryCode} />
+                      <span>{artist.country.name}</span>
                     </div>
                   </TableCell>
+                  <TableCell className="font-medium">
+                    {artist.subscribersCount}
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {artist.albums.length}
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {artist.tracks.length}
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {formatDateTime(user.profile.createdDate)}
+                    {formatDateTime(artist.createdDate)}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -193,9 +221,9 @@ export function Users({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem>View details</DropdownMenuItem>
-                        <DropdownMenuItem>Edit user</DropdownMenuItem>
+                        <DropdownMenuItem>Edit artist</DropdownMenuItem>
                         <DropdownMenuItem className="text-red-600">
-                          Delete user
+                          Delete artist
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -209,9 +237,9 @@ export function Users({
         <TableFooter
           startItem={startItem}
           endItem={endItem}
-          totalCount={users?.totalCount || 0}
-          pageNumber={users?.pageNumber || 0}
-          totalPages={users?.totalPages || 0}
+          totalCount={artists?.totalCount || 0}
+          pageNumber={artists?.pageNumber || 0}
+          totalPages={artists?.totalPages || 0}
           onPageChange={(page) =>
             setFilter((prev) => ({ ...prev, pageNumber: page }))
           }
