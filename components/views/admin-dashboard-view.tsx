@@ -629,7 +629,7 @@ export function AdminDashboardView() {
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Admin Dashboard</h2>
         <div className="flex items-center space-x-2">
-          <Button>
+          <Button onClick={() => setActiveTab("reports")}>
             <DownloadIcon className="mr-2 h-4 w-4" />
             Download Reports
           </Button>
@@ -649,7 +649,7 @@ export function AdminDashboardView() {
           <TabsTrigger value="nfts">NFTs</TabsTrigger>
           <TabsTrigger value="applications">
             Applications
-            {activeApplications !== 0 && (
+            {activeApplications > 0 && (
               <Badge className="w-5 h-5 ml-1 flex items-center justify-center rounded-full">
                 {activeApplications}
               </Badge>
@@ -1015,7 +1015,6 @@ export function AdminDashboardView() {
 
         <TabsContent value="applications" className="space-y-4">
           <ArtistApplications
-            activeApplications={activeApplications}
             setActiveApplications={setActiveApplications}
             filter={applicationsFilter}
             setFilter={setApplicationsFilter}

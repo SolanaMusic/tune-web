@@ -1,8 +1,9 @@
 "use client";
 
 import {
+  BadgeDollarSignIcon,
   BarChart3Icon,
-  MusicIcon,
+  Loader2,
   TrendingUpIcon,
   UsersIcon,
 } from "lucide-react";
@@ -14,45 +15,121 @@ import {
   CardTitle,
 } from "../ui/card";
 import { BarChart, LineChart, PieChart } from "../ui/chart";
+import { useEffect, useState } from "react";
+import axios from "axios";
+
+function PercentageChange({
+  totalValue,
+  currentValue,
+  prevValue,
+}: {
+  totalValue: number;
+  currentValue?: number;
+  prevValue?: number;
+}) {
+  let textClass = "text-muted-foreground";
+  let displayValue = `${totalValue}%`;
+
+  if (totalValue > 0) {
+    textClass = "text-green-600";
+    displayValue = `+${totalValue}%`;
+  } else if (totalValue < 0) {
+    textClass = "text-red-600";
+  }
+
+  const changeInfo =
+    currentValue !== undefined && prevValue !== undefined
+      ? ` (${prevValue} → ${currentValue})`
+      : "";
+
+  return (
+    <p className={`text-xs font-medium ${textClass}`}>
+      {displayValue}
+      {changeInfo}
+    </p>
+  );
+}
 
 export function Overview() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [overview, setOverview] = useState<any>();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}dashboard/overview`
+        );
+
+        setOverview(response.data);
+        setIsLoading(false);
+      } catch (error) {
+        console.log("Error fetching dashboard overview", error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 className="h-20 w-20 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <TrendingUpIcon className="h-4 w-4 text-muted-foreground" />
+            <TrendingUpIcon className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$45,231.89</div>
-            <p className="text-xs text-muted-foreground">
-              +20.1% from last month
-            </p>
+            <div className="text-2xl font-bold">
+              ${overview.revenue.change.totalValue}
+            </div>
+            <PercentageChange
+              totalValue={overview.revenue.change.percentageChange}
+              currentValue={overview.revenue.change.currentValue}
+              prevValue={overview.revenue.change.previousValue}
+            />
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Users</CardTitle>
-            <UsersIcon className="h-4 w-4 text-muted-foreground" />
+            <UsersIcon className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+2350</div>
+            <div className="text-2xl font-bold">
+              {overview.activeUsers.change.totalValue}
+            </div>
             <p className="text-xs text-muted-foreground">
-              +180.1% from last month
+              <PercentageChange
+                totalValue={overview.activeUsers.change.percentageChange}
+                currentValue={overview.activeUsers.change.currentValue}
+                prevValue={overview.activeUsers.change.previousValue}
+              />
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Songs</CardTitle>
-            <MusicIcon className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">NFT Sales</CardTitle>
+            <BadgeDollarSignIcon className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12,234</div>
-            <p className="text-xs text-muted-foreground">
-              +19% from last month
-            </p>
+            <div className="text-2xl font-bold">
+              {overview.nftSales.change.totalValue}
+            </div>
+            <PercentageChange
+              totalValue={overview.nftSales.change.percentageChange}
+              currentValue={overview.nftSales.change.currentValue}
+              prevValue={overview.nftSales.change.previousValue}
+            />
           </CardContent>
         </Card>
         <Card>
@@ -60,11 +137,17 @@ export function Overview() {
             <CardTitle className="text-sm font-medium">
               Active Subscriptions
             </CardTitle>
-            <BarChart3Icon className="h-4 w-4 text-muted-foreground" />
+            <BarChart3Icon className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,432</div>
-            <p className="text-xs text-muted-foreground">+5% from last month</p>
+            <div className="text-2xl font-bold">
+              {overview.subscriptionStats.change.totalValue}
+            </div>
+            <PercentageChange
+              totalValue={overview.subscriptionStats.change.percentageChange}
+              currentValue={overview.subscriptionStats.change.currentValue}
+              prevValue={overview.subscriptionStats.change.previousValue}
+            />
           </CardContent>
         </Card>
       </div>
@@ -75,24 +158,19 @@ export function Overview() {
           </CardHeader>
           <CardContent className="pl-2">
             <LineChart
-              data={[
-                { name: "Jan", total: 1200 },
-                { name: "Feb", total: 1900 },
-                { name: "Mar", total: 1800 },
-                { name: "Apr", total: 2400 },
-                { name: "May", total: 2700 },
-                { name: "Jun", total: 3100 },
-                { name: "Jul", total: 3500 },
-                { name: "Aug", total: 3200 },
-                { name: "Sep", total: 3800 },
-                { name: "Oct", total: 4200 },
-                { name: "Nov", total: 4600 },
-                { name: "Dec", total: 5100 },
-              ]}
+              data={overview.revenue.monthly.map(
+                (item: { date: string; value: number }) => ({
+                  name: new Date(item.date).toLocaleString("en-US", {
+                    month: "short",
+                    year: "numeric",
+                  }),
+                  total: item.value,
+                })
+              )}
               index="name"
               categories={["total"]}
               colors={["#2563eb"]}
-              valueFormatter={(value) => `$${value}`}
+              valueFormatter={(value) => `$${value.toFixed(2)}`}
               className="h-60 w-full"
             />
           </CardContent>
@@ -104,15 +182,16 @@ export function Overview() {
           </CardHeader>
           <CardContent>
             <PieChart
-              data={[
-                { name: "Basic", value: 35 },
-                { name: "Premium", value: 45 },
-                { name: "Family", value: 20 },
-              ]}
+              data={overview.subscriptionStats.stats.map(
+                (item: { subscriptionType: string; count: number }) => ({
+                  name: item.subscriptionType,
+                  total: item.count,
+                })
+              )}
               index="name"
-              categories={["value"]}
+              categories={["total"]}
               colors={["#2563eb", "#4ade80", "#f97316"]}
-              valueFormatter={(value) => `${value}%`}
+              valueFormatter={(value) => `${value}`}
               className="h-60 w-full"
             />
           </CardContent>
@@ -125,20 +204,15 @@ export function Overview() {
           </CardHeader>
           <CardContent className="pl-2">
             <BarChart
-              data={[
-                { name: "Jan", total: 580 },
-                { name: "Feb", total: 690 },
-                { name: "Mar", total: 1100 },
-                { name: "Apr", total: 1200 },
-                { name: "May", total: 1380 },
-                { name: "Jun", total: 1450 },
-                { name: "Jul", total: 1700 },
-                { name: "Aug", total: 1520 },
-                { name: "Sep", total: 1900 },
-                { name: "Oct", total: 2300 },
-                { name: "Nov", total: 2400 },
-                { name: "Dec", total: 2550 },
-              ]}
+              data={overview.activeUsers.monthly.map(
+                (item: { date: string; value: number }) => ({
+                  name: new Date(item.date).toLocaleString("en-US", {
+                    month: "short",
+                    year: "numeric",
+                  }),
+                  total: item.value,
+                })
+              )}
               index="name"
               categories={["total"]}
               colors={["#8b5cf6"]}
@@ -154,20 +228,15 @@ export function Overview() {
           </CardHeader>
           <CardContent className="pl-2">
             <LineChart
-              data={[
-                { name: "Jan", total: 12000 },
-                { name: "Feb", total: 18000 },
-                { name: "Mar", total: 15000 },
-                { name: "Apr", total: 22000 },
-                { name: "May", total: 28000 },
-                { name: "Jun", total: 32000 },
-                { name: "Jul", total: 36000 },
-                { name: "Aug", total: 30000 },
-                { name: "Sep", total: 38000 },
-                { name: "Oct", total: 42000 },
-                { name: "Nov", total: 48000 },
-                { name: "Dec", total: 52000 },
-              ]}
+              data={overview.nftSales.monthly.map(
+                (item: { date: string; value: number }) => ({
+                  name: new Date(item.date).toLocaleString("en-US", {
+                    month: "short",
+                    year: "numeric",
+                  }),
+                  total: item.value,
+                })
+              )}
               index="name"
               categories={["total"]}
               colors={["#ec4899"]}

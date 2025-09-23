@@ -38,6 +38,12 @@ interface ChartProps {
   className?: string;
 }
 
+const getGridColor = () => {
+  return document.body.classList.contains("dark")
+    ? "rgba(229, 231, 235, 0.2)"
+    : "rgba(107, 114, 128, 0.2)";
+};
+
 export function LineChart({
   data,
   index,
@@ -65,14 +71,14 @@ export function LineChart({
       title: { display: false },
     },
     scales: {
+      x: {
+        ticks: { color: "gray" },
+        grid: { color: getGridColor() },
+      },
       y: {
         ticks: {
-          callback: function (
-            this: Scale,
-            tickValue: string | number,
-            _index?: number,
-            _ticks?: unknown
-          ) {
+          color: "gray",
+          callback: function (this: Scale, tickValue: string | number) {
             const numeric =
               typeof tickValue === "string" ? Number(tickValue) : tickValue;
             return valueFormatter
@@ -80,6 +86,7 @@ export function LineChart({
               : String(tickValue);
           },
         },
+        grid: { color: getGridColor() },
       },
     },
   };
@@ -112,6 +119,7 @@ export function BarChart({
       title: { display: false },
     },
     scales: {
+      x: { grid: { color: getGridColor() } },
       y: {
         ticks: {
           callback: function (
@@ -127,6 +135,7 @@ export function BarChart({
               : String(tickValue);
           },
         },
+        grid: { color: getGridColor() },
       },
     },
   };

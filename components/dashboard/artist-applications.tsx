@@ -77,7 +77,6 @@ import { useUserStore } from "@/stores/UserStore";
 import { Textarea } from "../ui/textarea";
 
 interface ArtistApplicationsProps {
-  activeApplications: number;
   setActiveApplications: React.Dispatch<React.SetStateAction<number>>;
   filter: ArtistApplicationsFilter;
   setFilter: React.Dispatch<React.SetStateAction<ArtistApplicationsFilter>>;
@@ -92,7 +91,6 @@ interface ArtistApplicationsProps {
 }
 
 export function ArtistApplications({
-  activeApplications,
   setActiveApplications,
   filter,
   setFilter,
@@ -303,7 +301,7 @@ export function ArtistApplications({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-[60vh]">
         <Loader2 className="h-20 w-20 animate-spin text-primary" />
       </div>
     );
