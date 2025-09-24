@@ -4,52 +4,14 @@ import type React from "react";
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
-import {
   DownloadIcon,
-  SearchIcon,
   ArrowUpIcon,
   ArrowDownIcon,
   ArrowUpDownIcon,
 } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useRef } from "react";
 import { Reports } from "../dashboard/reports";
 import { Overview } from "../dashboard/overview";
@@ -59,6 +21,7 @@ import { Users } from "../dashboard/users";
 import { Sorting } from "@/lib/utils";
 import { Artists } from "../dashboard/artists";
 import { Tracks } from "../dashboard/tracks";
+import { Nfts } from "../dashboard/nfts";
 
 export interface DashboardFilter {
   query: string;
@@ -70,6 +33,10 @@ export interface DashboardFilter {
 
 export interface ArtistApplicationsFilter extends DashboardFilter {
   status: "Pending" | "Approved" | "Rejected" | "All";
+}
+
+export interface NftsFilter extends DashboardFilter {
+  type: "Album" | "Track" | "Artist" | "All";
 }
 
 export interface DashboardProps {
@@ -94,14 +61,6 @@ export const fetchPendingApplications = async () => {
 export function AdminDashboardView() {
   const [activeTab, setActiveTab] = useState("overview");
   const [activeApplications, setActiveApplications] = useState(0);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  const [filterValue, setFilterValue] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("all");
-  const tableContainerRef = useRef<HTMLDivElement>(null);
 
   const [applicationsSorting, setApplicationsSorting] = useState<Sorting>({
     sortColumn: "",
@@ -153,6 +112,19 @@ export function AdminDashboardView() {
     pageSize: 10,
   });
 
+  const [nftsSorting, setNftsSorting] = useState<Sorting>({
+    sortColumn: "",
+    sortDirection: "Asc",
+  });
+  const [nftsFilter, setNftsFilter] = useState<NftsFilter>({
+    query: "",
+    timeFilter: "AllTime",
+    pageNumber: 1,
+    totalPages: 1,
+    pageSize: 10,
+    type: "All",
+  });
+
   useEffect(() => {
     const fetchData = async () => {
       const response = await fetchPendingApplications();
@@ -161,103 +133,6 @@ export function AdminDashboardView() {
 
     fetchData();
   }, []);
-
-  const nfts = Array.from({ length: 100 }, (_, i) => ({
-    id: `nft${i + 1}`,
-    title: `NFT ${i + 1}`,
-    artist: `Artist ${Math.floor(i / 8) + 1}`,
-    type: i % 3 === 0 ? "Album" : i % 3 === 1 ? "Single" : "Collectible",
-    price: (Math.random() * 10).toFixed(2),
-    currency: "SOL",
-    minted: Math.floor(Math.random() * 1000),
-    totalSupply: 1000,
-    createdDate: new Date(
-      Date.now() - Math.floor(Math.random() * 10000000000)
-    ).toLocaleDateString(),
-  }));
-
-  const filterData = (data: any[]) => {
-    return data
-      .filter((item) => {
-        if (filterValue) {
-          const searchLower = filterValue.toLowerCase();
-          return Object.values(item).some(
-            (val) =>
-              val !== undefined &&
-              val !== null &&
-              String(val).toLowerCase().includes(searchLower)
-          );
-        }
-        return true;
-      })
-      .filter((item) => {
-        if (statusFilter !== "all" && item.status) {
-          return item.status.toLowerCase() === statusFilter.toLowerCase();
-        }
-        return true;
-      })
-      .filter((item) => {
-        if (dateFilter !== "all") {
-          const dateStr = item.joinDate || item.releaseDate || item.createdDate;
-          if (!dateStr) return true;
-
-          try {
-            const itemDate = new Date(dateStr);
-            const now = new Date();
-
-            switch (dateFilter) {
-              case "today":
-                return itemDate.toDateString() === now.toDateString();
-              case "week":
-                const weekAgo = new Date();
-                weekAgo.setDate(now.getDate() - 7);
-                return itemDate >= weekAgo;
-              case "month":
-                const monthAgo = new Date();
-                monthAgo.setMonth(now.getMonth() - 1);
-                return itemDate >= monthAgo;
-              case "year":
-                const yearAgo = new Date();
-                yearAgo.setFullYear(now.getFullYear() - 1);
-                return itemDate >= yearAgo;
-              default:
-                return true;
-            }
-          } catch (e) {
-            return true;
-          }
-        }
-        return true;
-      });
-  };
-
-  const sortData = (data: any[]) => {
-    if (!sortColumn) return data;
-
-    return [...data].sort((a, b) => {
-      const aValue = a[sortColumn];
-      const bValue = b[sortColumn];
-
-      if (aValue === undefined || aValue === null)
-        return sortDirection === "asc" ? -1 : 1;
-      if (bValue === undefined || bValue === null)
-        return sortDirection === "asc" ? 1 : -1;
-
-      if (typeof aValue === "string" && typeof bValue === "string") {
-        return sortDirection === "asc"
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      }
-
-      if (typeof aValue === "number" && typeof bValue === "number") {
-        return sortDirection === "asc" ? aValue - bValue : bValue - aValue;
-      }
-
-      return sortDirection === "asc"
-        ? String(aValue).localeCompare(String(bValue))
-        : String(bValue).localeCompare(String(aValue));
-    });
-  };
 
   const getSortIcon = (sorting: Sorting, column: string) => {
     if (sorting.sortColumn !== column) {
@@ -268,116 +143,6 @@ export function AdminDashboardView() {
     ) : (
       <ArrowDownIcon className="ml-2 h-4 w-4" />
     );
-  };
-
-  const getPaginatedData = (data: any[]) => {
-    const filteredData = filterData(data);
-    const sortedData = sortData(filteredData);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return {
-      data: sortedData.slice(startIndex, endIndex),
-      totalItems: sortedData.length,
-      totalPages: Math.ceil(sortedData.length / itemsPerPage),
-    };
-  };
-
-  const getCurrentData = () => {
-    switch (activeTab) {
-      case "nfts":
-        return getPaginatedData(nfts);
-      default:
-        return { data: [], totalItems: 0, totalPages: 0 };
-    }
-  };
-
-  const { data, totalItems, totalPages } = getCurrentData();
-
-  useEffect(() => {
-    setCurrentPage(1);
-    setSortColumn(null);
-    setSortDirection("asc");
-    setFilterValue("");
-    setStatusFilter("all");
-    setDateFilter("all");
-  }, [activeTab]);
-
-  const formatNumber = (value: any) => {
-    if (value === undefined || value === null) return "N/A";
-    if (typeof value === "number") return value.toLocaleString();
-    return value;
-  };
-
-  const renderTable = () => {
-    switch (activeTab) {
-      case "nfts":
-        return (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[100px]">
-                  <div className="flex items-center">ID</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Title</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Artist</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Type</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Price</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Minted</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Created Date</div>
-                </TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map((nft, index) => (
-                <TableRow key={nft.id || index}>
-                  <TableCell className="font-medium">{nft.id}</TableCell>
-                  <TableCell>{nft.title}</TableCell>
-                  <TableCell>{nft.artist}</TableCell>
-                  <TableCell>{nft.type}</TableCell>
-                  <TableCell>
-                    {nft.price} {nft.currency}
-                  </TableCell>
-                  <TableCell>
-                    {formatNumber(nft.minted)}/{formatNumber(nft.totalSupply)}
-                  </TableCell>
-                  <TableCell>{nft.createdDate}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontalIcon className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>View details</DropdownMenuItem>
-                        <DropdownMenuItem>Edit NFT</DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">
-                          Delete NFT
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        );
-      default:
-        return null;
-    }
   };
 
   return (
@@ -417,7 +182,6 @@ export function AdminDashboardView() {
         <TabsContent value="overview" className="space-y-4">
           <Overview />
         </TabsContent>
-
         <TabsContent value="users" className="space-y-4">
           <Users
             filter={usersFilter}
@@ -427,7 +191,6 @@ export function AdminDashboardView() {
             getSortIcon={getSortIcon}
           />
         </TabsContent>
-
         <TabsContent value="artists" className="space-y-4">
           <Artists
             filter={artistsFilter}
@@ -437,7 +200,6 @@ export function AdminDashboardView() {
             getSortIcon={getSortIcon}
           />
         </TabsContent>
-
         <TabsContent value="tracks" className="space-y-4">
           <Tracks
             filter={tracksFilter}
@@ -447,128 +209,15 @@ export function AdminDashboardView() {
             getSortIcon={getSortIcon}
           />
         </TabsContent>
-
         <TabsContent value="nfts" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>NFT Management</CardTitle>
-              <CardDescription>Manage your platform NFTs</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-col space-y-2 md:flex-row md:items-center md:space-x-2 md:space-y-0">
-                <div className="relative flex-1">
-                  <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search NFTs..."
-                    className="pl-8"
-                    value={filterValue}
-                    onChange={(e) => setFilterValue(e.target.value)}
-                  />
-                </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="album">Album</SelectItem>
-                    <SelectItem value="single">Single</SelectItem>
-                    <SelectItem value="collectible">Collectible</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={dateFilter} onValueChange={setDateFilter}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by date" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Time</SelectItem>
-                    <SelectItem value="today">Today</SelectItem>
-                    <SelectItem value="week">This Week</SelectItem>
-                    <SelectItem value="month">This Month</SelectItem>
-                    <SelectItem value="year">This Year</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={itemsPerPage.toString()}
-                  onValueChange={(value) =>
-                    setItemsPerPage(Number.parseInt(value))
-                  }
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Items per page" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="5">5 per page</SelectItem>
-                    <SelectItem value="10">10 per page</SelectItem>
-                    <SelectItem value="20">20 per page</SelectItem>
-                    <SelectItem value="50">50 per page</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div
-                className="rounded-md border"
-                ref={tableContainerRef}
-                style={{ height: "400px", overflow: "auto" }}
-              >
-                {renderTable()}
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
-                  {Math.min(currentPage * itemsPerPage, totalItems)} of{" "}
-                  {totalItems} entries
-                </div>
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        onClick={() =>
-                          setCurrentPage((prev) => Math.max(prev - 1, 1))
-                        }
-                        disabled={currentPage === 1}
-                      />
-                    </PaginationItem>
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-
-                      return (
-                        <PaginationItem key={pageNum}>
-                          <PaginationLink
-                            isActive={currentPage === pageNum}
-                            onClick={() => setCurrentPage(pageNum)}
-                          >
-                            {pageNum}
-                          </PaginationLink>
-                        </PaginationItem>
-                      );
-                    })}
-                    <PaginationItem>
-                      <PaginationNext
-                        onClick={() =>
-                          setCurrentPage((prev) =>
-                            Math.min(prev + 1, totalPages)
-                          )
-                        }
-                        disabled={currentPage === totalPages}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              </div>
-            </CardContent>
-          </Card>
+          <Nfts
+            filter={nftsFilter}
+            setFilter={setNftsFilter}
+            sorting={nftsSorting}
+            setSorting={setNftsSorting}
+            getSortIcon={getSortIcon}
+          />
         </TabsContent>
-
         <TabsContent value="applications" className="space-y-4">
           <ArtistApplications
             setActiveApplications={setActiveApplications}
@@ -585,26 +234,5 @@ export function AdminDashboardView() {
         </TabsContent>
       </Tabs>
     </div>
-  );
-}
-
-function MoreHorizontalIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="1" />
-      <circle cx="19" cy="12" r="1" />
-      <circle cx="5" cy="12" r="1" />
-    </svg>
   );
 }

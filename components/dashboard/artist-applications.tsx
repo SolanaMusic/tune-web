@@ -294,6 +294,7 @@ export function ArtistApplications({
                           src={getAvatarUrl(
                             selectedApplication.user.profile.avatarUrl
                           )}
+                          alt={selectedApplication.user.userName}
                         />
                         <AvatarFallback>
                           {selectedApplication.user.userName.charAt(0)}

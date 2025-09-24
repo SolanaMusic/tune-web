@@ -150,6 +150,7 @@ export function Users({
                       <Avatar className="h-8 w-8">
                         <AvatarImage
                           src={getAvatarUrl(user.profile.avatarUrl)}
+                          alt={user.artistName || user.userName}
                         />
                         <AvatarFallback>
                           {user.userName.charAt(0)}

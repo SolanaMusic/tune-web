@@ -178,7 +178,10 @@ export function Tracks({
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
-                        <img src={getAvatarUrl(track.imageUrl)} />
+                        <img
+                          src={getAvatarUrl(track.imageUrl)}
+                          alt={track.title}
+                        />
                       </Avatar>
                       <div className="font-medium">{track.title}</div>
                     </div>
