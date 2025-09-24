@@ -58,6 +58,7 @@ import axios from "axios";
 import { Users } from "../dashboard/users";
 import { Sorting } from "@/lib/utils";
 import { Artists } from "../dashboard/artists";
+import { Tracks } from "../dashboard/tracks";
 
 export interface DashboardFilter {
   query: string;
@@ -69,6 +70,14 @@ export interface DashboardFilter {
 
 export interface ArtistApplicationsFilter extends DashboardFilter {
   status: "Pending" | "Approved" | "Rejected" | "All";
+}
+
+export interface DashboardProps {
+  filter: DashboardFilter;
+  setFilter: React.Dispatch<React.SetStateAction<DashboardFilter>>;
+  sorting: Sorting;
+  setSorting: React.Dispatch<React.SetStateAction<Sorting>>;
+  getSortIcon: (sorting: Sorting, column: string) => React.ReactNode;
 }
 
 export const fetchPendingApplications = async () => {
@@ -132,6 +141,18 @@ export function AdminDashboardView() {
     pageSize: 10,
   });
 
+  const [tracksSorting, setTracksSorting] = useState<Sorting>({
+    sortColumn: "",
+    sortDirection: "Asc",
+  });
+  const [tracksFilter, setTracksFilter] = useState<DashboardFilter>({
+    query: "",
+    timeFilter: "AllTime",
+    pageNumber: 1,
+    totalPages: 1,
+    pageSize: 10,
+  });
+
   useEffect(() => {
     const fetchData = async () => {
       const response = await fetchPendingApplications();
@@ -140,22 +161,6 @@ export function AdminDashboardView() {
 
     fetchData();
   }, []);
-
-  const songs = Array.from({ length: 100 }, (_, i) => ({
-    id: `s${i + 1}`,
-    title: `Song ${i + 1}`,
-    artist: `Artist ${Math.floor(i / 10) + 1}`,
-    album: `Album ${Math.floor(i / 5) + 1}`,
-    plays: Math.floor(Math.random() * 1000000),
-    duration: `${Math.floor(Math.random() * 4) + 2}:${Math.floor(
-      Math.random() * 60
-    )
-      .toString()
-      .padStart(2, "0")}`,
-    releaseDate: new Date(
-      Date.now() - Math.floor(Math.random() * 10000000000)
-    ).toLocaleDateString(),
-  }));
 
   const nfts = Array.from({ length: 100 }, (_, i) => ({
     id: `nft${i + 1}`,
@@ -279,8 +284,6 @@ export function AdminDashboardView() {
 
   const getCurrentData = () => {
     switch (activeTab) {
-      case "songs":
-        return getPaginatedData(songs);
       case "nfts":
         return getPaginatedData(nfts);
       default:
@@ -307,67 +310,6 @@ export function AdminDashboardView() {
 
   const renderTable = () => {
     switch (activeTab) {
-      case "songs":
-        return (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[100px]">
-                  <div className="flex items-center">ID</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Title</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Artist</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Album</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Plays</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Duration</div>
-                </TableHead>
-                <TableHead>
-                  <div className="flex items-center">Release Date</div>
-                </TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map((song, index) => (
-                <TableRow key={song.id || index}>
-                  <TableCell className="font-medium">{song.id}</TableCell>
-                  <TableCell>{song.title}</TableCell>
-                  <TableCell>{song.artist}</TableCell>
-                  <TableCell>{song.album}</TableCell>
-                  <TableCell>{formatNumber(song.plays)}</TableCell>
-                  <TableCell>{song.duration}</TableCell>
-                  <TableCell>{song.releaseDate}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontalIcon className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>View details</DropdownMenuItem>
-                        <DropdownMenuItem>Edit song</DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">
-                          Delete song
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        );
       case "nfts":
         return (
           <Table>
@@ -459,7 +401,7 @@ export function AdminDashboardView() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="artists">Artists</TabsTrigger>
-          <TabsTrigger value="songs">Songs</TabsTrigger>
+          <TabsTrigger value="tracks">Tracks</TabsTrigger>
           <TabsTrigger value="nfts">NFTs</TabsTrigger>
           <TabsTrigger value="applications">
             Applications
@@ -496,113 +438,14 @@ export function AdminDashboardView() {
           />
         </TabsContent>
 
-        <TabsContent value="songs" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Song Management</CardTitle>
-              <CardDescription>Manage your platform songs</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-col space-y-2 md:flex-row md:items-center md:space-x-2 md:space-y-0">
-                <div className="relative flex-1">
-                  <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search songs..."
-                    className="pl-8"
-                    value={filterValue}
-                    onChange={(e) => setFilterValue(e.target.value)}
-                  />
-                </div>
-                <Select value={dateFilter} onValueChange={setDateFilter}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by date" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Time</SelectItem>
-                    <SelectItem value="today">Today</SelectItem>
-                    <SelectItem value="week">This Week</SelectItem>
-                    <SelectItem value="month">This Month</SelectItem>
-                    <SelectItem value="year">This Year</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={itemsPerPage.toString()}
-                  onValueChange={(value) =>
-                    setItemsPerPage(Number.parseInt(value))
-                  }
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Items per page" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="5">5 per page</SelectItem>
-                    <SelectItem value="10">10 per page</SelectItem>
-                    <SelectItem value="20">20 per page</SelectItem>
-                    <SelectItem value="50">50 per page</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div
-                className="rounded-md border"
-                ref={tableContainerRef}
-                style={{ height: "400px", overflow: "auto" }}
-              >
-                {renderTable()}
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
-                  {Math.min(currentPage * itemsPerPage, totalItems)} of{" "}
-                  {totalItems} entries
-                </div>
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        onClick={() =>
-                          setCurrentPage((prev) => Math.max(prev - 1, 1))
-                        }
-                        disabled={currentPage === 1}
-                      />
-                    </PaginationItem>
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-
-                      return (
-                        <PaginationItem key={pageNum}>
-                          <PaginationLink
-                            isActive={currentPage === pageNum}
-                            onClick={() => setCurrentPage(pageNum)}
-                          >
-                            {pageNum}
-                          </PaginationLink>
-                        </PaginationItem>
-                      );
-                    })}
-                    <PaginationItem>
-                      <PaginationNext
-                        onClick={() =>
-                          setCurrentPage((prev) =>
-                            Math.min(prev + 1, totalPages)
-                          )
-                        }
-                        disabled={currentPage === totalPages}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="tracks" className="space-y-4">
+          <Tracks
+            filter={tracksFilter}
+            setFilter={setTracksFilter}
+            sorting={tracksSorting}
+            setSorting={setTracksSorting}
+            getSortIcon={getSortIcon}
+          />
         </TabsContent>
 
         <TabsContent value="nfts" className="space-y-4">

@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DashboardFilter } from "../views/admin-dashboard-view";
+import { DashboardProps } from "../views/admin-dashboard-view";
 import axios from "axios";
 import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
 import {
@@ -26,7 +26,6 @@ import {
   formatDateTime,
   getAvatarUrl,
   handleSort,
-  Sorting,
 } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -39,21 +38,13 @@ import { TableToolbar } from "./tables/table-toolbar";
 import { TableFooter } from "./tables/table-footer";
 import { CountryFlag } from "../ui/country-flag";
 
-interface UsersProps {
-  filter: DashboardFilter;
-  setFilter: React.Dispatch<React.SetStateAction<DashboardFilter>>;
-  sorting: Sorting;
-  setSorting: React.Dispatch<React.SetStateAction<Sorting>>;
-  getSortIcon: (sorting: Sorting, column: string) => React.ReactNode;
-}
-
 export function Artists({
   filter,
   setFilter,
   sorting,
   setSorting,
   getSortIcon,
-}: UsersProps) {
+}: DashboardProps) {
   const [artists, setArtists] = useState<PaginatedResponse>();
   const [isLoading, setIsLoading] = useState(true);
   const tableContainerRef = useRef<HTMLDivElement>(null);
