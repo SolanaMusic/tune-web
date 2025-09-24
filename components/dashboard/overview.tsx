@@ -43,10 +43,10 @@ function PercentageChange({
       : "";
 
   return (
-    <p className={`text-xs font-medium ${textClass}`}>
+    <span className={`text-xs font-medium ${textClass}`}>
       {displayValue}
       {changeInfo}
-    </p>
+    </span>
   );
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { SearchIcon } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { Input } from "../../ui/input";
 import {
   Select,
@@ -10,30 +10,55 @@ import {
   SelectItem,
 } from "../../ui/select";
 import { DashboardFilter } from "../../views/admin-dashboard-view";
+import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
 
 interface TableToolbarProps<F extends DashboardFilter> {
   filter: F;
   setFilter: React.Dispatch<React.SetStateAction<F>>;
   children?: React.ReactNode;
+  debounceTime?: number;
 }
 
 export function TableToolbar<F extends DashboardFilter>({
   filter,
   setFilter,
   children,
+  debounceTime = 350,
 }: TableToolbarProps<F>) {
+  const [searchValue, setSearchValue] = useState(filter.query);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (searchValue !== filter.query) {
+        setFilter((prev) => ({ ...prev, query: searchValue }));
+      }
+    }, debounceTime);
+
+    return () => clearTimeout(handler);
+  }, [searchValue, setFilter, filter.query, debounceTime]);
+
   return (
     <div className="flex flex-col space-y-2 md:flex-row md:items-center md:space-x-2 md:space-y-0">
-      <div className="relative flex-1">
-        <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+      <div className="relative w-full">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           placeholder="Search..."
-          className="pl-8"
-          value={filter.query}
-          onChange={(e) =>
-            setFilter((prev) => ({ ...prev, query: e.target.value }))
-          }
+          className="w-full pl-8 pr-10"
+          value={searchValue}
+          autoFocus
+          onChange={(e) => setSearchValue(e.target.value)}
         />
+        {searchValue && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-1 top-1/2 -translate-y-1/2"
+            onClick={() => setSearchValue("")}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {children}
