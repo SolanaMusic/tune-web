@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState } from "react";
-import { CreateContentModal } from "./modals/create-content-modal";
+import { CreateContentModal } from "./modals/create-content/create-content-modal";
 import { useUserStore } from "@/stores/UserStore";
 
 export function MobileSidebar() {

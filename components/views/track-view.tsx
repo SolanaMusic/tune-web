@@ -33,6 +33,7 @@ import {
 import axios from "axios";
 import { useUserStore } from "@/stores/UserStore";
 import { usePlayerStore } from "@/stores/PlayerStore";
+import { serializeParams } from "@/lib/utils";
 
 export function TrackView({ id }: { id: string }) {
   const router = useRouter();
@@ -80,7 +81,11 @@ export function TrackView({ id }: { id: string }) {
         }
 
         const relatedResponse = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}tracks/by-artist/${trackResponse.data.artists[0].id}`
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}tracks/by-artists`,
+          {
+            params: { artistIds: trackResponse.data.artists[0].id },
+            paramsSerializer: serializeParams,
+          }
         );
         setRelated(relatedResponse.data);
 

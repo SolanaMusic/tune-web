@@ -68,3 +68,43 @@ export const getAvatarUrl = (avatarUrl: string) => {
     ? avatarUrl
     : `${process.env.NEXT_PUBLIC_SERVER_BASE_URL}${avatarUrl}`;
 };
+
+export function serializeParams(params: Record<string, any>): string {
+  return Object.entries(params)
+    .map(([key, value]) =>
+      Array.isArray(value)
+        ? value.map((v) => `${key}=${encodeURIComponent(v)}`).join("&")
+        : `${key}=${encodeURIComponent(value)}`
+    )
+    .join("&");
+}
+
+export const handleFileUpload = (
+  e: React.ChangeEvent<HTMLInputElement>,
+  setPreview: (value: string | null) => void
+) => {
+  const file = e.target.files?.[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  }
+};
+
+export const removeFile = (
+  ref: React.RefObject<HTMLInputElement | null>,
+  setPreview: (value: string | null) => void
+) => {
+  setPreview(null);
+  if (ref.current) {
+    ref.current.value = "";
+  }
+};
+
+export const triggerFileInput = (
+  ref: React.RefObject<HTMLInputElement | null>
+) => {
+  ref.current?.click();
+};

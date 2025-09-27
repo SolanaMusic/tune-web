@@ -81,8 +81,8 @@ export function CreateCollectionModal({
   const fetchAlbums = async (query: string) => {
     try {
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}albums/by-artist/${id}`,
-        { params: { title: query } }
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}albums/by-artists`,
+        { params: { title: query, artistIds: id } }
       );
       setAlbums(response.data);
     } catch (error) {
@@ -93,8 +93,8 @@ export function CreateCollectionModal({
   const fetchTracks = async (query: string) => {
     try {
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}tracks/by-artist/${id}`,
-        { params: { name: query } }
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}tracks/by-artists`,
+        { params: { name: query, artistIds: id } }
       );
       setTracks(response.data);
     } catch (error) {

@@ -40,8 +40,8 @@ export function AlbumView({ id }: { id: number }) {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
-  const [album, setAlbum] = useState();
-  const [moreAlbums, setMoreAlbums] = useState();
+  const [album, setAlbum] = useState<any>();
+  const [moreAlbums, setMoreAlbums] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -52,7 +52,8 @@ export function AlbumView({ id }: { id: number }) {
         setAlbum(albumsResponse.data);
 
         const moreAlbumsResponse = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}albums/by-artist/${albumsResponse.data.artists[0].id}`
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}albums/by-artists`,
+          { params: { artistIds: albumsResponse.data.artists[0].id } }
         );
         setMoreAlbums(moreAlbumsResponse.data);
       } catch (error) {
