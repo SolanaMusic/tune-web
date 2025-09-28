@@ -75,7 +75,7 @@ export function NFTDetailView({ id }: { id: number }) {
     }
   };
 
-  const handlePurchase = async () => {
+  const handlePurchase = async (): Promise<string> => {
     try {
       const transactionId = await mintNft(nft.id, nft.address, nft.price);
       if (!transactionId) {
@@ -83,6 +83,7 @@ export function NFTDetailView({ id }: { id: number }) {
       }
 
       await fetchNFTDetails();
+      return transactionId;
     } catch (error) {
       console.error("Error during minting:", error);
       throw error;

@@ -5,10 +5,13 @@ import {
   Transaction,
   Connection,
   Keypair,
+  SendTransactionError,
 } from "@solana/web3.js";
 import { getOrCreateAssociatedTokenAccount, transfer } from "@solana/spl-token";
+import { useUserStore } from "@/stores/UserStore";
 
 export const useSolana = () => {
+  const { user } = useUserStore();
   const connection = new Connection(
     `${process.env.NEXT_PUBLIC_CONNECTION_ADRESS}`,
     "confirmed"
@@ -19,12 +22,21 @@ export const useSolana = () => {
     lamportsAmount: number
   ): Promise<string | null> => {
     try {
-      const provider = window.solana;
+      const provider = (window as any).solana;
+
+      if (!provider) throw new Error("Wallet not found");
       await provider.connect();
+
       const senderPublicKey = new PublicKey(provider.publicKey.toString());
       const recipient = new PublicKey(toAddress);
 
-      const transaction = new Transaction().add(
+      const { blockhash, lastValidBlockHeight } =
+        await connection.getLatestBlockhash("finalized");
+
+      const transaction = new Transaction({
+        recentBlockhash: blockhash,
+        feePayer: senderPublicKey,
+      }).add(
         SystemProgram.transfer({
           fromPubkey: senderPublicKey,
           toPubkey: recipient,
@@ -32,17 +44,22 @@ export const useSolana = () => {
         })
       );
 
-      const { blockhash, lastValidBlockHeight } =
-        await connection.getLatestBlockhash("finalized");
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = senderPublicKey;
-
       const signedTransaction = await provider.signTransaction(transaction);
-      const signature = await connection.sendRawTransaction(
-        signedTransaction.serialize()
-      );
+      let signature: string;
 
-      await connection.confirmTransaction(
+      try {
+        signature = await connection.sendRawTransaction(
+          signedTransaction.serialize()
+        );
+      } catch (error) {
+        if (error instanceof SendTransactionError) {
+          const logs = await error.getLogs(connection);
+          console.error("Transaction simulation logs:", logs);
+        }
+        throw error;
+      }
+
+      const confirmation = await connection.confirmTransaction(
         {
           signature,
           blockhash,
@@ -51,6 +68,12 @@ export const useSolana = () => {
         "confirmed"
       );
 
+      if (confirmation.value.err) {
+        console.error("Transaction failed:", confirmation.value.err);
+        return null;
+      }
+
+      console.log("Transaction confirmed. Signature:", signature);
       return signature;
     } catch (error) {
       console.error("Error during Solana transaction:", error);
@@ -63,11 +86,18 @@ export const useSolana = () => {
     await provider.connect();
 
     const toAddress = process.env.NEXT_PUBLIC_SYSTEM_WALLET_ADRESS;
+    const byteArrayString = process.env.NEXT_PUBLIC_PRIVATE_KEY;
+
+    if (!toAddress || !byteArrayString) {
+      throw new Error(
+        "System wallet address or private key is missing in env variables."
+      );
+    }
+
     const buyerPublicKey = new PublicKey(provider.publicKey);
     const nftMint = new PublicKey(mintAddress);
 
     try {
-      const byteArrayString = process.env.NEXT_PUBLIC_PRIVATE_KEY;
       const byteArray = byteArrayString.split(",").map(Number);
       const payer = Keypair.fromSecretKey(Uint8Array.from(byteArray));
 
@@ -85,7 +115,10 @@ export const useSolana = () => {
         payer.publicKey
       );
 
-      await sendSolanaTransaction(toAddress, price * 1_000_000_000);
+      const transactionTx = await sendSolanaTransaction(
+        toAddress,
+        price * 1_000_000_000
+      );
 
       const transferTx = await transfer(
         connection,
@@ -104,7 +137,7 @@ export const useSolana = () => {
         mintAddress
       );
 
-      return transferTx;
+      return transactionTx;
     } catch (error) {
       console.error("Error during NFT minting:", error);
       return null;
@@ -123,7 +156,7 @@ export const useSolana = () => {
         owner,
       },
       transactionRequest: {
-        userId: 1,
+        userId: user?.id,
         currencyId: 2,
         amount,
         paymentIntent: address,

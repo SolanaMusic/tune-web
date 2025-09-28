@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import axios from "axios";
 import PaymentMethods from "../ui/payment-methods";
+import { useUserStore } from "@/stores/UserStore";
 
 interface SubscriptionPlan {
   id: number;
@@ -58,6 +59,7 @@ export function SubscriptionView() {
   const router = useRouter();
   const pathname = usePathname();
   const { sendSolanaTransaction } = useSolana();
+  const { user } = useUserStore();
 
   const fetchPlans = async () => {
     try {
@@ -113,6 +115,8 @@ export function SubscriptionView() {
     planPriceUSD: number,
     currencyId: number
   ) => {
+    if (!user) return;
+
     const finalPrice =
       billingCycle === "yearly" ? planPriceUSD * 12 * 0.83 : planPriceUSD;
 
@@ -125,7 +129,7 @@ export function SubscriptionView() {
 
   const handleBankTransfer = async (planId: number, currencyId: number) => {
     const paymentData = {
-      userId: 1,
+      userId: user?.id,
       currencyId: currencyId,
       stripeSubscriptionPaymentDto: {
         subscriptionPlanId: planId,
@@ -190,7 +194,7 @@ export function SubscriptionView() {
     status: "pending" | "completed" | "failed"
   ) => {
     const paymentRequest = {
-      userId: 1,
+      userId: user?.id,
       currencyId,
       amount,
       subscriptionPlanId: planId,

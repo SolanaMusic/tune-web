@@ -126,7 +126,7 @@ export function CollectionDetailView({ id }: { id: string }) {
     }
   };
 
-  const handlePurchase = async () => {
+  const handlePurchase = async (): Promise<string> => {
     try {
       const transactionId = await mintNft(
         selectedNFT.id,
@@ -138,6 +138,7 @@ export function CollectionDetailView({ id }: { id: string }) {
       }
 
       await fetchCollectionData();
+      return transactionId;
     } catch (error) {
       console.error("Error during minting:", error);
       throw error;

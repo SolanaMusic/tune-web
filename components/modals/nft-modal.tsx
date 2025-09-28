@@ -19,7 +19,7 @@ interface PurchaseModalProps {
   address: string;
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => Promise<void>;
+  onConfirm: () => Promise<string>;
 }
 
 export const PurchaseModal = ({
@@ -34,6 +34,7 @@ export const PurchaseModal = ({
   onConfirm,
 }: PurchaseModalProps) => {
   const [isPurchaseInProgress, setIsPurchaseInProgress] = useState(false);
+  const [txId, setTxId] = useState("");
   const [purchaseStatus, setPurchaseStatus] = useState<
     "success" | "timeout" | "failure" | null
   >(null);
@@ -42,12 +43,16 @@ export const PurchaseModal = ({
     setIsPurchaseInProgress(true);
     setPurchaseStatus(null);
 
-    const timeout = new Promise<void>((_, reject) =>
+    const timeout = new Promise<never>((_, reject) =>
       setTimeout(() => reject("timeout"), 30000)
     );
 
     try {
-      await Promise.race([onConfirm(), timeout]);
+      const transactionId = await Promise.race([onConfirm(), timeout]);
+      if (typeof transactionId === "string") {
+        setTxId(transactionId);
+      }
+
       setPurchaseStatus("success");
     } catch (error) {
       if (error === "timeout") {
@@ -160,7 +165,7 @@ export const PurchaseModal = ({
                   The NFT has been minted for {price} SOL
                 </p>
                 <a
-                  href={`${process.env.NEXT_PUBLIC_SOLSCAN_URL}token/${address}?cluster=devnet`}
+                  href={`${process.env.NEXT_PUBLIC_SOLSCAN_URL}tx/${txId}?cluster=devnet`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-green-400 text-sm underline hover:text-opacity-80"
