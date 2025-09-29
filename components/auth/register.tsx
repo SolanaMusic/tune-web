@@ -15,7 +15,7 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserStore } from "@/stores/UserStore";
 
-export function Register() {
+export function Register({ referralCode }: { referralCode: string | null }) {
   const router = useRouter();
   const { setUser } = useUserStore();
   const [isLoading, setIsLoading] = useState(false);
@@ -90,6 +90,7 @@ export function Register() {
           userName: formData.userName,
           password: formData.password,
           repeatPassword: formData.repeatPassword,
+          referralCode,
         }
       );
 
@@ -119,8 +120,15 @@ export function Register() {
 
   const handleExternalLogin = (provider: string) => {
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
-    const redirectUrl = `${apiBase}auth/external-response`;
-    const externalLoginUrl = `${apiBase}auth/external-login?provider=${provider}&redirectUrl=${redirectUrl}`;
+    let redirectUrl = `${apiBase}auth/external-response`;
+
+    if (referralCode) {
+      redirectUrl += `?ref=${encodeURIComponent(referralCode)}`;
+    }
+
+    const externalLoginUrl = `${apiBase}auth/external-login?provider=${provider}&redirectUrl=${encodeURIComponent(
+      redirectUrl
+    )}`;
 
     window.location.href = externalLoginUrl;
   };
@@ -263,7 +271,7 @@ export function Register() {
           <span className="sr-only">Twitter</span>
         </Button>
 
-        <CryptoWalletLogin />
+        <CryptoWalletLogin referralCode={referralCode} />
       </div>
     </div>
   );

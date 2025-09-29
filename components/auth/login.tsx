@@ -15,7 +15,7 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserStore } from "@/stores/UserStore";
 
-export function Login() {
+export function Login({ referralCode }: { referralCode: string | null }) {
   const router = useRouter();
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({ email: "", password: "" });
@@ -89,8 +89,15 @@ export function Login() {
 
   const handleExternalLogin = (provider: string) => {
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
-    const redirectUrl = `${apiBase}auth/external-response`;
-    const externalLoginUrl = `${apiBase}auth/external-login?provider=${provider}&redirectUrl=${redirectUrl}`;
+    let redirectUrl = `${apiBase}auth/external-response`;
+
+    if (referralCode) {
+      redirectUrl += `?ref=${encodeURIComponent(referralCode)}`;
+    }
+
+    const externalLoginUrl = `${apiBase}auth/external-login?provider=${provider}&redirectUrl=${encodeURIComponent(
+      redirectUrl
+    )}`;
 
     window.location.href = externalLoginUrl;
   };
@@ -191,7 +198,7 @@ export function Login() {
           <span className="sr-only">Twitter</span>
         </Button>
 
-        <CryptoWalletLogin />
+        <CryptoWalletLogin referralCode={referralCode} />
       </div>
     </div>
   );

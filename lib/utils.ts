@@ -81,6 +81,11 @@ export function timeAgo(dateString: string) {
   return `${seconds} second${seconds > 1 ? "s" : ""} ago`;
 }
 
+export function splitByCaps(text: string): string {
+  if (!text) return "";
+  return text.replace(/([A-Z])/g, " $1").trim();
+}
+
 export const getAvatarUrl = (avatarUrl: string) => {
   if (!avatarUrl) return "/placeholder.svg";
 
@@ -133,3 +138,12 @@ function parseDateString(dateString: string) {
   const normalized = dateString.replace(" ", "T").split(".")[0];
   return new Date(normalized + "Z");
 }
+
+export const statusStyles: Record<string, string> = {
+  Completed: "bg-green-500/20 text-green-500",
+  Pending: "bg-blue-500/20 text-blue-500",
+  Failed: "bg-red-500/20 text-red-500",
+  Refunded: "bg-amber-500/20 text-amber-500",
+  Expired: "bg-gray-500/20 text-gray-500",
+  Unknown: "bg-muted/20 text-muted-foreground",
+};

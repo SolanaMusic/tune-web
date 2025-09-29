@@ -21,7 +21,9 @@ import { clusterApiUrl } from "@solana/web3.js";
 import axios from "axios";
 import { useUserStore } from "@/stores/UserStore";
 
-export const CryptoWalletLogin: FC = () => {
+export const CryptoWalletLogin: FC<{ referralCode?: string | null }> = ({
+  referralCode,
+}) => {
   const network = WalletAdapterNetwork.Devnet;
   const endpoint = useMemo(() => clusterApiUrl(network), [network]);
 
@@ -63,7 +65,7 @@ export const CryptoWalletLogin: FC = () => {
     <ConnectionProvider endpoint={endpoint}>
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
-          <WalletDisplay />
+          <WalletDisplay referralCode={referralCode} />
           <WalletMultiButton>
             <Image
               src="/icons/sol-logo-icon.svg"
@@ -79,7 +81,9 @@ export const CryptoWalletLogin: FC = () => {
   );
 };
 
-const WalletDisplay: FC = () => {
+const WalletDisplay: FC<{ referralCode?: string | null }> = ({
+  referralCode,
+}) => {
   const router = useRouter();
   const { user, setUser } = useUserStore();
   const { connected, publicKey, wallet } = useWallet();
@@ -95,8 +99,9 @@ const WalletDisplay: FC = () => {
         const body = {
           publicKey: publicKey.toString(),
           signature: signatureBase64,
-          message: message,
+          message,
           walletName: wallet.adapter.name,
+          referralCode,
         };
 
         const response = await axios.post(

@@ -6,8 +6,17 @@ import { Login } from "@/components/auth/login";
 import { Register } from "@/components/auth/register";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useEffect, useState } from "react";
 
 export function AuthPage() {
+  const [refCode, setRefCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("ref");
+    setRefCode(code);
+  }, []);
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <div className="flex h-16 items-center border-b px-6 justify-between">
@@ -34,10 +43,10 @@ export function AuthPage() {
               <TabsTrigger value="register">Sign Up</TabsTrigger>
             </TabsList>
             <TabsContent value="login">
-              <Login />
+              <Login referralCode={refCode} />
             </TabsContent>
             <TabsContent value="register">
-              <Register />
+              <Register referralCode={refCode} />
             </TabsContent>
           </Tabs>
         </div>

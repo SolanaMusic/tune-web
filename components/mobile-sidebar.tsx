@@ -14,6 +14,7 @@ import {
   Hammer,
   FilePlus,
   LayoutGrid,
+  Gift,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -98,6 +99,12 @@ export function MobileSidebar() {
             href="/nft-marketplace"
             icon={<ShoppingBag />}
             label="NFT Market"
+            isActive={isActive}
+          />
+          <NavButton
+            href="/referrals"
+            icon={<Gift />}
+            label="Referrals"
             isActive={isActive}
           />
           <NavButton

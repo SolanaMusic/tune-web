@@ -14,9 +14,9 @@ import {
   Hammer,
   FilePlus,
   LayoutGrid,
+  Gift,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { CreateContentModal } from "./modals/create-content/create-content-modal";
 import { useUserStore } from "@/stores/UserStore";
@@ -97,6 +97,16 @@ export function Sidebar() {
             <Link href="/nft-marketplace">
               <ShoppingBag className="mr-2 h-5 w-5" />
               NFT Market
+            </Link>
+          </Button>
+          <Button
+            variant={getVariant("/referrals", false)}
+            className="w-full justify-start"
+            asChild
+          >
+            <Link href="/referrals">
+              <Gift className="mr-2 h-5 w-5" />
+              Referrals
             </Link>
           </Button>
           <Button

@@ -30,6 +30,7 @@ import {
   AlertCircle,
   Globe,
   RefreshCcw,
+  Gift,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -68,7 +69,7 @@ import {
 } from "../ui/dialog";
 import { Progress } from "../ui/progress";
 import Link from "next/link";
-import { getAvatarUrl, timeAgo } from "@/lib/utils";
+import { getAvatarUrl, splitByCaps, statusStyles, timeAgo } from "@/lib/utils";
 
 export function ProfileView() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -305,11 +306,6 @@ export function ProfileView() {
     });
   }
 
-  function splitByCaps(text: string): string {
-    if (!text) return "";
-    return text.replace(/([A-Z])/g, " $1").trim();
-  }
-
   const activeOrLatestSubscription = (() => {
     if (!subscriptions || subscriptions.length === 0) return null;
 
@@ -320,15 +316,6 @@ export function ProfileView() {
       return new Date(curr.endDate) > new Date(prev.endDate) ? curr : prev;
     }, subscriptions[0]);
   })();
-
-  const statusStyles: Record<string, string> = {
-    Completed: "bg-green-500/20 text-green-500",
-    Pending: "bg-blue-500/20 text-blue-500",
-    Failed: "bg-red-500/20 text-red-500",
-    Refunded: "bg-amber-500/20 text-amber-500",
-    Expired: "bg-gray-500/20 text-gray-500",
-    Unknown: "bg-muted/20 text-muted-foreground",
-  };
 
   if (isLoading) {
     return (
@@ -547,7 +534,7 @@ export function ProfileView() {
                 <div className="space-y-8">
                   <div className="bg-card rounded-lg border p-6">
                     <h2 className="text-xl font-bold mb-4">Your Activity</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div className="bg-background rounded-lg p-4 border">
                         <div className="flex items-center gap-3">
                           <div className="bg-primary/20 p-2 rounded-full">
@@ -589,6 +576,21 @@ export function ProfileView() {
                             </div>
                             <div className="text-2xl font-bold">
                               {profile.transactions.length}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="bg-background rounded-lg p-4 border">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-primary/20 p-2 rounded-full">
+                            <Gift className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <div className="text-sm text-muted-foreground">
+                              Referred Users
+                            </div>
+                            <div className="text-2xl font-bold">
+                              {profile.referrals.length}
                             </div>
                           </div>
                         </div>
