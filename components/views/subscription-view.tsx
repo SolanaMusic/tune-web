@@ -59,7 +59,7 @@ export function SubscriptionView() {
   const router = useRouter();
   const pathname = usePathname();
   const { sendSolanaTransaction } = useSolana();
-  const { user } = useUserStore();
+  const { user, setUser } = useUserStore();
 
   const fetchPlans = async () => {
     try {
@@ -112,24 +112,24 @@ export function SubscriptionView() {
 
   const handlePayment = async (
     planId: number,
-    planPriceUSD: number,
+    price: number,
     currencyId: number
   ) => {
     if (!user) return;
+    console.log(price, currencyId);
 
-    const finalPrice =
-      billingCycle === "yearly" ? planPriceUSD * 12 * 0.83 : planPriceUSD;
+    const finalPrice = billingCycle === "yearly" ? price * 12 * 0.83 : price;
 
     if (currencyId === 1) {
       await handleBankTransfer(planId, currencyId);
-    } else if (currencyId === 2) {
+    } else {
       await handleCryptoPayment(planId, finalPrice, currencyId);
     }
   };
 
   const handleBankTransfer = async (planId: number, currencyId: number) => {
     const paymentData = {
-      userId: user?.id,
+      userId: user!.id,
       currencyId: currencyId,
       stripeSubscriptionPaymentDto: {
         subscriptionPlanId: planId,
@@ -140,14 +140,9 @@ export function SubscriptionView() {
     };
 
     try {
-      var response = await axios.post(
+      const response = await axios.post(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}payments/stripe`,
-        paymentData,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
+        paymentData
       );
       if (response.status === 200) {
         router.push(response.data);
@@ -159,22 +154,42 @@ export function SubscriptionView() {
 
   const handleCryptoPayment = async (
     planId: number,
-    planPriceUSD: number,
+    price: number,
     currencyId: number
   ) => {
     try {
-      const lamports = Math.round((planPriceUSD / solPrice) * 1_000_000_000);
+      const isTune =
+        currencyId ===
+        currencies.find((x) => x.code.toLowerCase() === "tune")?.id;
+
+      if (isTune) {
+        const response = await recordPayment(
+          planId,
+          currencyId,
+          price,
+          "Tune Payment",
+          "Completed"
+        );
+        if (response?.status === 200) {
+          setUser({ ...user!, tokensAmount: user!.tokensAmount - price });
+          router.push("/profile");
+        }
+        return;
+      }
+
+      const lamports = Math.round((price / solPrice) * 1_000_000_000);
+
       const signature = await sendSolanaTransaction(
         process.env.NEXT_PUBLIC_SYSTEM_WALLET_ADRESS!,
         lamports
       );
 
-      var response = await recordPayment(
+      const response = await recordPayment(
         planId,
         currencyId,
         lamports / 1_000_000_000,
         signature,
-        "completed"
+        "Completed"
       );
 
       if (response?.status === 200) {
@@ -182,7 +197,7 @@ export function SubscriptionView() {
       }
     } catch (error) {
       console.error("Error during Solana payment:", error);
-      await recordPayment(planId, currencyId, 0, null, "failed");
+      await recordPayment(planId, currencyId, price, null, "Failed");
     }
   };
 
@@ -191,10 +206,10 @@ export function SubscriptionView() {
     currencyId: number,
     amount: number,
     paymentIntent: string | null,
-    status: "pending" | "completed" | "failed"
+    status: "Pending" | "Completed" | "Failed"
   ) => {
     const paymentRequest = {
-      userId: user?.id,
+      userId: user!.id,
       currencyId,
       amount,
       subscriptionPlanId: planId,
@@ -205,12 +220,7 @@ export function SubscriptionView() {
     try {
       return await axios.post(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}payments/crypto`,
-        paymentRequest,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
+        paymentRequest
       );
     } catch (error) {
       console.error("Error posting payment record:", error);
@@ -482,14 +492,22 @@ export function SubscriptionView() {
                   }`}
                   variant={plan.popular ? "default" : "outline"}
                   onClick={() => {
-                    handlePayment(
-                      plan.id,
+                    const usdPrice =
                       plan.subscriptionPlanCurrencies.find(
                         (c) => c.currency.code === "USD"
-                      )?.price || 1,
+                      )?.price || 1;
+
+                    const selectedCurrency =
                       plan.subscriptionPlanCurrencies.find(
                         (c) => c.currency.code === currency
-                      )?.currency.id || 2
+                      );
+
+                    handlePayment(
+                      plan.id,
+                      currency === "TUNE"
+                        ? selectedCurrency?.price || 1
+                        : usdPrice,
+                      selectedCurrency?.currency.id || 2
                     );
                   }}
                 >

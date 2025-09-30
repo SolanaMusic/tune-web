@@ -572,7 +572,7 @@ export function ProfileView() {
                           </div>
                           <div>
                             <div className="text-sm text-muted-foreground">
-                              Transactions processed
+                              Transactions Processed
                             </div>
                             <div className="text-2xl font-bold">
                               {profile.transactions.length}
