@@ -6,7 +6,9 @@
     "dev": "concurrently \"npm run dev:next\" \"npm run dev:server\"",
     "dev:next": "next dev",
     "dev:server": "node server.ts",
+    "dev:desktop": "npx tauri dev",
     "build": "next build",
+    "build:desktop": "npx tauri build",
     "start": "next start",
     "lint": "next lint"
   },
@@ -49,6 +51,8 @@
     "@solana/wallet-adapter-react-ui": "^0.9.38",
     "@solana/wallet-adapter-wallets": "^0.19.36",
     "@solana/web3.js": "^1.98.2",
+    "@tauri-apps/api": "^2.8.0",
+    "@tauri-apps/cli": "^2.8.4",
     "@types/express": "^5.0.1",
     "autoprefixer": "^10.4.20",
     "axios": "^1.9.0",
